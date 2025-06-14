@@ -25,3 +25,8 @@ replay_pid*
 
 # Credenciais Secretas do Firebase
 serviceAccountKey.json
+
+# Tokens do Firebase
+xx.json
+
+

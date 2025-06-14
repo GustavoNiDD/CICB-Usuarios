@@ -34,3 +34,8 @@ build/
 
 # Credenciais Secretas do Firebase
 serviceAccountKey.json
+
+# Tokens do Firebase
+xx.json
+
+

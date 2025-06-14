@@ -1,18 +1,19 @@
-// src/main/java/com/br/usuarios/model/User.java
+// src/main/java/com/br/usuarios/models/User.java
 package com.br.usuarios.models;
 
-import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
- * Entidade JPA que representa um usuário no banco de dados local.
- * Esta tabela é sincronizada com os usuários do Firebase.
+ * Entidade que representa um usuário no MongoDB.
+ * A anotação @Document mapeia esta classe para uma coleção no banco.
  */
-@Entity
-@Table(name = "users")
+@Document(collection = "users") // Mapeia para a coleção "users" no MongoDB
 @Data
 @Builder
 @NoArgsConstructor
@@ -20,20 +21,18 @@ import lombok.Builder;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id; // No MongoDB, o ID é tipicamente uma String (ObjectId)
 
     // UID do Firebase, usado como identificador único para sincronização.
-    @Column(unique = true, nullable = false, updatable = false)
+    // @Indexed(unique = true) garante que não haverá UIDs duplicados.
+    @Indexed(unique = true)
     private String uid;
 
-    @Column(unique = true, nullable = false)
+    @Indexed(unique = true)
     private String email;
 
     private String name;
 
-    // Define o papel do usuário para controle de acesso.
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    // O Enum é salvo como uma String no documento.
     private Role role;
 }

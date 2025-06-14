@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obter Token de Teste do Firebase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Obter Token de Teste</h1>
+        
+        <div id="config-section">
+            <h2 class="text-lg font-semibold mb-2">1. Configuração do Firebase</h2>
+            <p class="text-sm text-gray-600 mb-4">Cole o objeto de configuração do seu projeto Firebase abaixo.</p>
+            <textarea id="firebase-config" rows="10" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder='{
+    "apiKey": "AIza...",
+    "authDomain": "seu-projeto.firebaseapp.com",
+    "projectId": "seu-projeto",
+    "storageBucket": "seu-projeto.appspot.com",
+    "messagingSenderId": "...",
+    "appId": "1:..."
+}'></textarea>
+            <button onclick="setupFirebase()" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition font-semibold">Salvar Configuração</button>
+        </div>
+
+        <div id="login-section" class="hidden">
+            <h2 class="text-lg font-semibold mb-2">2. Login do Usuário de Teste</h2>
+            <div class="space-y-4">
+                <input type="email" id="email" placeholder="E-mail do usuário de teste" class="w-full p-3 border border-gray-300 rounded-md">
+                <input type="password" id="password" placeholder="Senha" class="w-full p-3 border border-gray-300 rounded-md">
+            </div>
+            <button onclick="signIn()" class="mt-4 w-full bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition font-semibold">Obter Token</button>
+        </div>
+
+        <div id="result-section" class="mt-6 hidden">
+            <h2 class="text-lg font-semibold text-gray-800">Token de ID (JWT)</h2>
+            <p class="text-sm text-gray-500 mb-2">Copie e use no cabeçalho 'Authorization: Bearer &lt;token&gt;' do Postman.</p>
+            <textarea id="id-token" rows="8" readonly class="w-full p-3 border bg-gray-50 rounded-md font-mono text-xs"></textarea>
+            <button onclick="copyToken()" class="mt-2 w-full bg-gray-600 text-white py-2 rounded-md hover:bg-gray-700 transition text-sm">Copiar Token</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importa os módulos do Firebase SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        let auth; // Variável global para o serviço de autenticação
+
+        window.setupFirebase = function() {
+            const configText = document.getElementById('firebase-config').value;
+            if (!configText) {
+                alert('Por favor, cole a configuração do Firebase.');
+                return;
+            }
+            try {
+                const firebaseConfig = JSON.parse(configText);
+                initializeApp(firebaseConfig);
+                auth = getAuth();
+                document.getElementById('config-section').classList.add('hidden');
+                document.getElementById('login-section').classList.remove('hidden');
+            } catch (error) {
+                alert('A configuração do Firebase parece ser inválida. Verifique o JSON.');
+                console.error("Erro ao parsear config:", error);
+            }
+        }
+
+        window.signIn = async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const idToken = await userCredential.user.getIdToken();
+                
+                const resultSection = document.getElementById('result-section');
+                const tokenTextarea = document.getElementById('id-token');
+                
+                tokenTextarea.value = idToken;
+                resultSection.classList.remove('hidden');
+            } catch (error) {
+                alert(`Falha no login: ${error.message}`);
+                console.error("Erro no login:", error);
+            }
+        }
+
+        window.copyToken = function() {
+            const tokenTextarea = document.getElementById('id-token');
+            tokenTextarea.select();
+            document.execCommand('copy');
+            alert('Token copiado para a área de transferência!');
+        }
+    </script>
+</body>
+</html>
+```
+
+<!-- ---
+
+### Guia Passo a Passo para Testar com Postman
+
+**Passo 1: Habilitar Autenticação no Firebase**
+1. No seu **Console do Firebase**, vá para a seção **"Authentication"**.
+2. Clique na aba **"Sign-in method"**.
+3. Na lista de provedores, clique em **"E-mail/senha"** e habilite-o.
+
+**Passo 2: Criar um Usuário de Teste**
+1. Ainda em **"Authentication"**, vá para a aba **"Users"**.
+2. Clique em **"Add user"**.
+3. Digite um e-mail (ex: `aluno@teste.com`) e uma senha. Anote-os. Crie quantos usuários precisar (ex: `professor@teste.com`, `admin@teste.com`).
+
+**Passo 3: Obter sua Configuração Web do Firebase**
+1. No console, clique na engrenagem (⚙️) > **"Configurações do projeto"**.
+2. Na aba **"Geral"**, role para baixo até a seção **"Seus apps"**.
+3. Se não houver um app da Web, clique em **"Adicionar app"** e escolha o ícone da Web (`</>`). Dê um apelido e registre.
+4. Clique no app da Web que você criou. Na seção **"SDK setup and configuration"**, selecione a opção `</> Config`.
+5. Você verá um objeto JavaScript chamado `firebaseConfig`. **Copie este objeto inteiro.**
+
+**Passo 4: Usar a Ferramenta para Obter o Token**
+1. Abra o arquivo `login.html` no seu navegador.
+2. Na caixa "1. Configuração do Firebase", **cole o objeto `firebaseConfig`** que você copiou. Clique em "Salvar Configuração".
+3. A seção de login aparecerá. Digite o e-mail e a senha do seu usuário de teste (ex: `aluno@teste.com`) e clique em "Obter Token".
+4. O token aparecerá na caixa de texto. Copie-o.
+
+**Passo 5: Configurar e Usar o Postman**
+1. Crie uma nova requisição no Postman (ex: `GET http://localhost:8080/api/users/me`).
+2. Vá para a aba **"Authorization"**.
+3. Em "Type", selecione **"Bearer Token"**.
+4. No campo "Token", cole o token que você copiou. O Postman adicionará o cabeçalho `Authorization: Bearer <seu_token>` automaticamente.
+5. Clique em **"Send"**. Você deverá receber os dados do usuário!
+
+**Como testar como Admin/Professor?**
+O papel (`Role`) de um usuário está no nosso banco de dados. Para testar:
+1. Faça login com um usuário (ex: `admin@teste.com`). Isso irá criar o usuário no seu banco de dados com a `role` padrão `ALUNO`.
+2. Acesse seu banco de dados (pode ser pelo console H2 em `http://localhost:8080/h2-console` se você estiver usando H2) e execute um `UPDATE` na tabela `users` para mudar a `role` daquele usuário para `ADMIN`.
+3. Obtenha um novo token para `admin@teste.com` e use-o no Postman para acessar `/api/admin/dashboard`. Agora o acesso será permiti -->
+
+{
+  apiKey: "AIzaSyAxwoRf1f0j74QH0sXf9tffLriVbDFd1-4",
+  authDomain: "cicb-35c00.firebaseapp.com",
+  projectId: "cicb-35c00",
+  storageBucket: "cicb-35c00.firebasestorage.app",
+  messagingSenderId: "1000928975311",
+  appId: "1:1000928975311:web:7fe5f68d71448a034c1aba"
+}
+
+{
+  "apiKey": "AIzaSyAxwoRf1f0j74QH0sXf9tffLriVbDFd1-4",
+  "authDomain": "cicb-35c00.firebaseapp.com",
+  "projectId": "cicb-35c00",
+  "storageBucket": "cicb-35c00.appspot.com",
+  "messagingSenderId": "1000928975311",
+  "appId": "1:1000928975311:web:7fe5f68d71448a034c1aba"
+}

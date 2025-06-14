@@ -1,0 +1,2 @@
+# Em application.properties.example
+spring.data.mongodb.uri=mongodb+srv://SEU_USER:SUA_SENHA@seu_cluster_url/NOME_DO_BANCO?retryWrites=true&w=majority
