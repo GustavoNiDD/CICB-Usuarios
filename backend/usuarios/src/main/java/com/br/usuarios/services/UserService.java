@@ -1,8 +1,12 @@
+// src/main/java/com/br/usuarios/services/UserService.java
 package com.br.usuarios.services;
 
+import com.br.usuarios.models.Invitation;
 import com.br.usuarios.models.Role;
 import com.br.usuarios.models.User;
 import com.br.usuarios.repositories.UserRepository;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,59 +15,82 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Serviço que encapsula a lógica de negócio para o gerenciamento de usuários.
- * Esta classe atua como uma ponte entre os controladores (controllers) e os repositórios (repositories).
- */
 @Service
-@RequiredArgsConstructor // Injeta as dependências (final) via construtor, graças ao Lombok.
+@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
+    private final InvitationService invitationService; // Nova dependência
 
     /**
-     * Processa um usuário autenticado pelo Firebase.
-     * <p>
-     * Se o usuário (identificado pelo UID do token) não existir no banco de dados local,
-     * ele é criado com um papel padrão (Role.ALUNO) e salvo.
-     * Se ele já existir, seus dados são simplesmente retornados.
-     * A anotação @Transactional garante que a operação de verificação-e-criação seja atômica.
-     *
-     * @param decodedToken O token do Firebase já decodificado, contendo as informações do usuário (uid, email, etc.).
-     * @return O usuário correspondente do banco de dados local (seja ele novo ou já existente).
+     * Processa o login de um usuário já existente ou o cadastro
+     * de um novo usuário SEM convite (padrão ALUNO).
      */
     @Transactional
     public User processFirebaseUser(FirebaseToken decodedToken) {
-        String uid = decodedToken.getUid();
-
-        // O método orElseGet é ideal aqui: a expressão lambda para criar um novo usuário
-        // só será executada se o Optional retornado pelo findByUid estiver vazio.
-        return userRepository.findByUid(uid).orElseGet(() -> {
+        return userRepository.findByUid(decodedToken.getUid()).orElseGet(() -> {
             User newUser = User.builder()
-                    .uid(uid)
+                    .uid(decodedToken.getUid())
                     .email(decodedToken.getEmail())
                     .name(decodedToken.getName())
-                    .role(Role.ALUNO) // Define um papel padrão para todo novo usuário.
+                    .role(Role.ALUNO) // Papel padrão para quem se cadastra sem convite.
                     .build();
             return userRepository.save(newUser);
         });
     }
 
     /**
-     * Delega a chamada para o repositório para buscar um usuário pelo seu UID.
+     * Registra um novo usuário no sistema a partir de um convite.
+     * Este é o novo fluxo principal para cadastros autorizados.
      *
-     * @param uid O UID do Firebase.
-     * @return Um Optional contendo o usuário, se encontrado.
+     * @param firebaseIdToken O token do Firebase do novo usuário.
+     * @param invitationToken O token do convite que ele usou.
+     * @return O usuário recém-criado.
+     * @throws Exception se o convite, o token ou os dados forem inválidos.
      */
+    @Transactional
+    public User registerNewUser(String firebaseIdToken, String invitationToken) throws Exception {
+        // 1. Valida se o convite existe, não foi usado e não expirou.
+        Invitation invitation = invitationService.validateInvitation(invitationToken)
+            .orElseThrow(() -> new Exception("Convite inválido ou expirado."));
+
+        // 2. Valida o token do Firebase para garantir a identidade do usuário.
+        FirebaseToken decodedToken;
+        try {
+            decodedToken = FirebaseAuth.getInstance().verifyIdToken(firebaseIdToken);
+        } catch (FirebaseAuthException e) {
+            throw new Exception("Token do Firebase inválido.");
+        }
+
+        // 3. Garante que o usuário se cadastrou com o mesmo e-mail do convite.
+        if (!decodedToken.getEmail().equalsIgnoreCase(invitation.getEmail())) {
+            throw new Exception("O e-mail do convite não corresponde ao e-mail da conta de login.");
+        }
+
+        // 4. Garante que o usuário ainda não está cadastrado.
+        if (userRepository.existsByEmail(decodedToken.getEmail())) {
+            throw new Exception("Usuário já cadastrado no sistema.");
+        }
+
+        // 5. Cria o novo usuário com o papel (Role) definido no convite.
+        User newUser = User.builder()
+                .uid(decodedToken.getUid())
+                .email(decodedToken.getEmail())
+                .name(decodedToken.getName())
+                .role(invitation.getRole()) // A Role vem do convite!
+                .build();
+        userRepository.save(newUser);
+
+        // 6. Marca o convite como "aceito" para que não possa ser usado novamente.
+        invitationService.markInvitationAsAccepted(invitation);
+
+        return newUser;
+    }
+
     public Optional<User> findByUid(String uid) {
         return userRepository.findByUid(uid);
     }
 
-    /**
-     * Retorna uma lista de todos os usuários cadastrados no banco de dados local.
-     *
-     * @return Uma lista de todas as entidades User.
-     */
     public List<User> findAll() {
         return userRepository.findAll();
     }
