@@ -15,23 +15,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        System.out.println(">>> WebConfig: Aplicando mapeamentos CORS (origens explícitas)...");
-        String[] allowedOrigins = {
-            "http://localhost:19006/",
-            "http://localhost:8081/",  // Sua origem frontend principal
-            "exp://1cmgfxq-anonymous-8081.exp.direct",
-            "exp://192.166.0.11:8081",
-            "http://192.168.0.11:8080/",
-            // ADICIONE A URL DA SUA APLICAÇÃO FRONTEND EM PRODUÇÃO NO HEROKU
-            // Exemplo: "https://seu-app-frontend.herokuapp.com/"
-            "https://pessoas-api-c5ef63b1acc3.herokuapp.com/" // IMPORTANTE: Se o frontend também estiver no Heroku, adicione a URL COMPLETA dele aqui.
-        };
-        registry.addMapping("/*")
-                .allowedOrigins(allowedOrigins)
+        System.out.println(">>> WebConfig: Aplicando mapeamentos CORS (TODAS as origens)...");
+        registry.addMapping("/")
+                .allowedOrigins("") // ATENÇÃO: ISSO PERMITE TODAS AS ORIGENS **
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("")
-                .allowCredentials(true);
-        System.out.println(">>> WebConfig: Mapeamentos CORS aplicados para as seguintes origens: " +
-                           String.join(", ", allowedOrigins));
+                .allowCredentials(true); // Se allowCredentials for true, allowedOrigins NÃO PODE ser "*" para alguns navegadores.
+                                          // Veja a NOTA IMPORTANTE abaixo.
+        System.out.println(">>> WebConfig: Mapeamentos CORS aplicados para TODAS as origens.");
     }
 }
