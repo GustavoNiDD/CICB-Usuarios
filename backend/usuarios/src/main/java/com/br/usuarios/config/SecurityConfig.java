@@ -1,4 +1,4 @@
-// src/main/java/com/br/usuarios/config/SecurityConfig.java
+// Caminho: src/main/java/com/br/usuarios/config/SecurityConfig.java
 package com.br.usuarios.config;
 
 import lombok.RequiredArgsConstructor;
@@ -11,6 +11,7 @@ import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod; // Mantenha este import
 
 @Configuration
 @EnableWebSecurity
@@ -27,11 +28,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // As regras de autorização aqui usam hasRole sem o prefixo.
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/professor/**").hasAnyRole("ADMIN", "PROFESSOR")
-                        .requestMatchers("/api/aluno/**").hasAnyRole("ADMIN", "PROFESSOR", "ALUNO")
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll() // <<< MUDANÇA AQUI: PERMITE QUALQUER REQUISIÇÃO
                 )
                 .addFilterBefore(firebaseTokenFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -3,6 +3,7 @@ package com.br.usuarios.controllers;
 
 import com.br.usuarios.dtos.InvitationRequestDto;
 import com.br.usuarios.models.Invitation;
+import com.br.usuarios.services.EmailService;
 import com.br.usuarios.services.InvitationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,30 +23,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class InvitationController {
 
     private final InvitationService invitationService;
-    // Futuramente, injetaríamos aqui um EmailService para enviar o e-mail.
+    private final EmailService emailService; // Injeta o novo serviço de e-mail
 
     /**
      * Endpoint para criar e enviar um convite de cadastro.
-     * Graças à nossa configuração de segurança, a anotação @Secured agora
-     * usa o nome do papel diretamente, sem o prefixo "ROLE_".
+     * Este método agora completa o fluxo: cria o convite e envia o e-mail.
      *
      * @param invitationRequest DTO contendo o e-mail e o papel do convidado.
      * @return Uma resposta de sucesso.
      */
     @PostMapping
-    @Secured("ADMIN") // O código fica mais limpo e intuitivo.
+    @Secured("ADMIN")
     public ResponseEntity<Void> createInvitation(@RequestBody InvitationRequestDto invitationRequest) {
+        // 1. Cria o registro do convite no banco de dados.
         Invitation invitation = invitationService.createInvitation(
             invitationRequest.email(),
             invitationRequest.role()
         );
 
-        // TODO: Lógica para enviar o e-mail.
-        // Aqui é onde você chamaria um serviço de e-mail para enviar o link
-        // de convite para o usuário.
-        // Ex: emailService.sendInvitationEmail(invitation.getEmail(), invitation.getToken());
-
-        System.out.println("Convite criado para: " + invitation.getEmail() + " com o token: " + invitation.getToken());
+        // 2. Envia o e-mail de convite para o usuário.
+        emailService.sendInvitationEmail(invitation.getEmail(), invitation.getToken());
 
         return ResponseEntity.ok().build();
     }

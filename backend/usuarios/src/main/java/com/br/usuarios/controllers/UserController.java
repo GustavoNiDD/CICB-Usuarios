@@ -32,6 +32,9 @@ public class UserController {
      */
     @GetMapping("/me")
     public ResponseEntity<UserDto> getCurrentUser(@AuthenticationPrincipal String uid) {
+
+        System.out.println("UID do usuário autenticado: " + uid);
+        
         return userService.findByUid(uid)
                 .map(userMapper::toDto)
                 .map(ResponseEntity::ok)
