@@ -1,4 +1,3 @@
-// Caminho: /home/gustavoadm/projetos/ColegioIntegracao/backend/usuarios/src/main/java/com/br/usuarios/config/WebConfig.java
 package com.br.usuarios.config;
 
 import org.springframework.context.annotation.Configuration;
@@ -18,18 +17,20 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         System.out.println(">>> WebConfig: Aplicando mapeamentos CORS (origens explícitas)...");
         String[] allowedOrigins = {
-            "http://localhost:19006", // Para desenvolvimento Expo Web (se usar porta 19006)
-            "http://localhost:8081",  // Sua origem frontend principal
-            "exp://1cmgfxq-anonymous-8081.exp.direct", // Se usar tunelamento Expo
-            "exp://192.166.0.11:8081", // Seu IP na rede local para Expo LAN (verifique seu IP real no WSL ou no seu PC)
-            "http://192.168.0.11:8080" // Se o app mobile usar o mesmo IP do backend como origem
-            // ADICIONE QUALQUER OUTRA ORIGEM REAL QUE SEU FRONTEND POSSA TER
+            "http://localhost:19006/",
+            "http://localhost:8081/",  // Sua origem frontend principal
+            "exp://1cmgfxq-anonymous-8081.exp.direct",
+            "exp://192.166.0.11:8081",
+            "http://192.168.0.11:8080/",
+            // ADICIONE A URL DA SUA APLICAÇÃO FRONTEND EM PRODUÇÃO NO HEROKU
+            // Exemplo: "https://seu-app-frontend.herokuapp.com/"
+            "https://pessoas-api-c5ef63b1acc3.herokuapp.com/" // IMPORTANTE: Se o frontend também estiver no Heroku, adicione a URL COMPLETA dele aqui.
         };
-        registry.addMapping("/**")
-                .allowedOrigins(allowedOrigins) // AGORA COM AS ORIGENS ESPECÍFICAS
+        registry.addMapping("/*")
+                .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true); // Mantenha como true se precisa de credenciais
+                .allowedHeaders("")
+                .allowCredentials(true);
         System.out.println(">>> WebConfig: Mapeamentos CORS aplicados para as seguintes origens: " +
                            String.join(", ", allowedOrigins));
     }
