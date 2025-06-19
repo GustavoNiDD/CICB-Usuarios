@@ -5,6 +5,7 @@ import com.br.usuarios.dtos.UserDto;
 import com.br.usuarios.mappers.UserMapper;
 import com.br.usuarios.services.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
 
     private final UserService userService;
@@ -33,11 +35,21 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserDto> getCurrentUser(@AuthenticationPrincipal String uid) {
 
-        System.out.println("UID do usuário autenticado: " + uid);
+        log.info(">>> UserController: Requisição recebida para /api/users/me");
+        log.info(">>> UserController: UID do usuário autenticado: {}", uid);
+        
+        System.out.println(">>> UserController: Requisição recebida para /api/users/me");
+        System.out.println(">>> UserController: UID do usuário autenticado: " + uid);
         
         return userService.findByUid(uid)
-                .map(userMapper::toDto)
+                .map(user -> {
+                    log.info(">>> UserController: Usuário encontrado: {}", user.getEmail());
+                    return userMapper.toDto(user);
+                })
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    log.warn(">>> UserController: Usuário não encontrado para UID: {}", uid);
+                    return ResponseEntity.notFound().build();
+                });
     }
 }

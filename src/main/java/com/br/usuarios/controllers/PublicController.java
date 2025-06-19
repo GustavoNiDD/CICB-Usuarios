@@ -44,8 +44,18 @@ public class PublicController {
         info.put("timestamp", LocalDateTime.now().toString());
         info.put("endpoints", Map.of(
             "health", "/public/health",
-            "status", "/public/status"
+            "status", "/public/status",
+            "cors-test", "/public/cors-test"
         ));
         return info;
+    }
+
+    @GetMapping("/cors-test")
+    public Map<String, Object> corsTest() {
+        Map<String, Object> test = new HashMap<>();
+        test.put("message", "CORS está funcionando!");
+        test.put("timestamp", LocalDateTime.now().toString());
+        test.put("origin", "Teste de origem permitida");
+        return test;
     }
 }
