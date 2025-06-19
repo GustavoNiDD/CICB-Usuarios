@@ -17,19 +17,22 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         System.out.println(">>> WebConfig: Aplicando mapeamentos CORS (incluindo Heroku)...");
         String[] allowedOrigins = {
-            "http://localhost:19006/", // Para desenvolvimento Expo Web
-            "http://localhost:8081/",  // Sua origem frontend principal de desenvolvimento
+            "http://localhost:19006", // Para desenvolvimento Expo Web
+            "http://localhost:8081",  // Sua origem frontend principal de desenvolvimento
             "exp://1cmgfxq-anonymous-8081.exp.direct", // Exemplo de túnel Expo
             "exp://192.166.0.11:8081", // Exemplo de IP local para Expo LAN
-            "http://192.168.0.11:8080/", // Se o app mobile usar o mesmo IP do backend
-            "https://pessoas-api-c5ef63b1acc3.herokuapp.com/" // <<<<< AQUI ESTÁ A URL DO SEU BACKEND NO HEROKU
-            // Adicione outras origens reais (seus domínios de frontend em produção/staging)
+            "http://192.168.0.11:8080", // Se o app mobile usar o mesmo IP do backend
+            "https://pessoas-api-c5ef63b1acc3.herokuapp.com", // URL do backend no Heroku
+            "https://*.herokuapp.com", // Permite qualquer subdomínio do Heroku
+            "*" // Temporariamente permite todas as origens para debug
         };
-        registry.addMapping("/*")
+        registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("")
-                .allowCredentials(true);
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH")
+                .allowedHeaders("*")
+                .exposedHeaders("Authorization", "Content-Type", "X-Requested-With")
+                .allowCredentials(true)
+                .maxAge(3600);
         System.out.println(">>> WebConfig: Mapeamentos CORS aplicados para as seguintes origens: " +
                            String.join(", ", allowedOrigins));
     }
