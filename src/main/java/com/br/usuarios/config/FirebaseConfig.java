@@ -1,4 +1,3 @@
-// src/main/java/com/br/usuarios/config/FirebaseConfig.java
 package com.br.usuarios.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
@@ -7,8 +6,10 @@ import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.Resource;
+// import org.springframework.core.io.Resource; // Esta linha não é mais necessária!
+import java.io.ByteArrayInputStream; // Novo import necessário
 import java.io.IOException;
+import java.io.InputStream; // Novo import necessário
 
 /**
  * Configuração para inicializar o Firebase Admin SDK na inicialização da aplicação.
@@ -17,30 +18,37 @@ import java.io.IOException;
 @Configuration
 public class FirebaseConfig {
 
-    // Injeta o caminho do arquivo de credenciais a partir do application.properties.
-    // Usar 'classpath:' indica que o arquivo está na pasta 'src/main/resources'.
+    // INJEÇÃO DA VARIÁVEL DE AMBIENTE COMO STRING
+    // O conteúdo do JSON virá diretamente para esta string.
     @Value("${FIREBASE_SERVICE_ACCOUNT_KEY}")
-    private Resource serviceAccountKeyResource;
+    private String serviceAccountKeyJson; // Mudei o tipo para String
 
     /**
      * Método executado automaticamente após a construção do bean para inicializar o FirebaseApp.
-     * A anotação @PostConstruct é ideal para tarefas de inicialização.
      */
     @PostConstruct
     public void initialize() {
         try {
             // Verifica se uma instância do FirebaseApp já foi inicializada para evitar erros.
             if (FirebaseApp.getApps().isEmpty()) {
+                // CONVERTENDO A STRING JSON EM UM InputStream
+                // O GoogleCredentials.fromStream() precisa de um InputStream,
+                // então convertemos a string JSON para bytes e depois para um InputStream.
+                InputStream serviceAccount = new ByteArrayInputStream(serviceAccountKeyJson.getBytes());
+
                 FirebaseOptions options = FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.fromStream(serviceAccountKeyResource.getInputStream()))
+                        .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                         .build();
 
                 FirebaseApp.initializeApp(options);
+                System.out.println(">>> Firebase Admin SDK inicializado com sucesso a partir da variável de ambiente.");
             }
         } catch (IOException e) {
-            // Lança uma exceção em tempo de execução se não for possível ler o arquivo de credenciais.
-            // Isso interrompe a inicialização da aplicação, pois a integração com o Firebase é crítica.
-            throw new RuntimeException("Falha ao inicializar o Firebase Admin SDK", e);
+            // Lança uma exceção em tempo de execução se não for possível ler as credenciais.
+            throw new RuntimeException("Falha ao inicializar o Firebase Admin SDK: Erro ao processar as credenciais da variável de ambiente. Verifique o formato JSON.", e);
+        } catch (Exception e) {
+            // Captura outras exceções que podem ocorrer, como JSON malformado na variável de ambiente
+            throw new RuntimeException("Erro inesperado durante a inicialização do Firebase Admin SDK. Verifique a variável FIREBASE_SERVICE_ACCOUNT_KEY.", e);
         }
     }
 }
