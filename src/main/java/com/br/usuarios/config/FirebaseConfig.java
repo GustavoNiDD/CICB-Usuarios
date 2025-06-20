@@ -19,7 +19,7 @@ public class FirebaseConfig {
 
     // Injeta o caminho do arquivo de credenciais a partir do application.properties.
     // Usar 'classpath:' indica que o arquivo está na pasta 'src/main/resources'.
-    @Value("classpath:serviceAccountKey.json")
+    @Value("${FIREBASE_SERVICE_ACCOUNT_KEY}")
     private Resource serviceAccountKeyResource;
 
     /**
