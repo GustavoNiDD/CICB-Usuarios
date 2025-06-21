@@ -3,17 +3,17 @@ name: Deploy Frontend to GitHub Pages
 on:
   push:
     branches:
-      - main # Confirme sua branch principal
+      - main # Confirme se esta é a branch principal do seu repositório (ex: master, main, dev)
     paths:
-      - 'frontend/**'
+      - 'frontend/**' # Isso fará o workflow rodar apenas se houver mudanças na pasta 'frontend/'
   workflow_dispatch: # Adicione esta linha para permitir execução manual
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
+      pages: write     # Concede permissão de escrita para o token de deploy nas GitHub Pages
+      id-token: write  # Concede permissão para criar tokens OIDC para autenticação (necessário para deploy Pages)
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -21,20 +21,20 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20' # Use a versão do Node.js que você usa localmente ou a recomendada pelo Expo SDK 53
 
       - name: Install dependencies (Frontend)
-        run: npm install
-        working-directory: ./frontend
+        run: npm install # Ou yarn install, se você usa yarn
+        working-directory: ./frontend # IMPORTANTE: Execute este comando dentro da pasta do seu frontend
 
       - name: Build Frontend Web
-        run: npx expo export --platform web
-        working-directory: ./frontend
+        run: EXPO_BASE_URL=/CICB/ npx expo export --platform web # <--- LINHA CORRIGIDA AQUI!
+        working-directory: ./frontend # IMPORTANTE: Execute este comando dentro da pasta do seu frontend
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./frontend/dist
+          path: ./frontend/dist # Caminho para a pasta que contém seu build web
 
       - name: Deploy to GitHub Pages
         id: deployment
