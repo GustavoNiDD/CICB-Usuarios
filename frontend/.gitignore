@@ -5,7 +5,7 @@ node_modules/
 
 # Expo
 .expo/
-dist/
+# dist/       <-- COMENTE OU REMOVA ESTA LINHA!
 web-build/
 expo-env.d.ts
 
