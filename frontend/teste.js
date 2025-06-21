@@ -12,7 +12,7 @@ fetch('https://pessoas-api-c5ef63b1acc3.herokuapp.com/api/users/me', {
   })
   .then(data => {
     console.log(data);
-  })
+  }) 
   .catch(error => {
     console.error('Fetch error:', error);
   });
