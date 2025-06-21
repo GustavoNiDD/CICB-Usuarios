@@ -3,13 +3,18 @@ name: Deploy Frontend to GitHub Pages
 on:
   push:
     branches:
-      - main # Confirme se esta é a branch principal do seu repositório (geralmente main ou master)
+      - main
     paths:
-      - 'frontend/**' # Isso faz o deploy APENAS se algo mudar dentro da pasta 'frontend/'
+      - 'frontend/**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # ADICIONE ESTAS DUAS LINHAS AQUI ABAIXO:
+    permissions:
+      pages: write     # Concede permissão de escrita para o token de deploy nas GitHub Pages
+      id-token: write  # Concede permissão para criar tokens OIDC para autenticação (necessário para deploy Pages)
+    # FIM DAS LINHAS A SEREM ADICIONADAS
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -17,10 +22,10 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Use a versão do Node.js que você usa localmente
+          node-version: '20'
 
       - name: Install dependencies (Frontend)
-        run: npm install # Se você usa yarn, mude para: yarn install
+        run: npm install
         working-directory: ./frontend
 
       - name: Build Frontend Web
@@ -30,7 +35,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./frontend/dist # Caminho para a pasta que contém o build web, gerada no passo anterior
+          path: ./frontend/dist
 
       - name: Deploy to GitHub Pages
         id: deployment
