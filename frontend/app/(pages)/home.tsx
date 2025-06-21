@@ -10,7 +10,7 @@ import { auth } from '../../utils/firebaseConfig'; // Importa a instância auth
 // <<<<< ENDEREÇO IP ATUALIZADO >>>>>
 // Com base no seu 'ipconfig', este é o provável IP da sua máquina na rede local.
 // Se estiver testando no NAVEGADOR WEB no seu PC, 'http://localhost:8080' também funcionaria.
-const BACKEND_BASE_URL = 'http://localhost:8080'; // <<<<< IP DA SUA MÁQUINA >>>>>
+const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; // <<<<< IP DA SUA MÁQUINA >>>>>
 
 
 // Definição da interface para o UserDto que virá do backend
@@ -55,7 +55,7 @@ const HomePage = () => {
 
       try {
         const idToken = await firebaseUser.getIdToken();
-        console.log('🚀 ID Token obtido (parcial):', idToken.substring(0, 30) + '...'); 
+        console.log('🚀 ID Token obtido (parcial):', idToken); 
 
         const response = await fetch(`${BACKEND_BASE_URL}/api/users/me`, {
           method: 'GET',
