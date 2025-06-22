@@ -200,7 +200,7 @@ const RegisterPage = () => {
 
     return (
         <ImageBackground
-            source={require('../../assets/images/backgroundRegister.jpg')}
+            source={require('../../assets/images/backgroundRegister.png')}
             style={styles.background}
             resizeMode="cover"
             blurRadius={1}
