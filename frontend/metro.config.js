@@ -1,8 +1,8 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
-const defaultConfig = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
 
-defaultConfig.resolver.sourceExts.push('cjs');
-defaultConfig.resolver.unstable_enablePackageExports = false;
+// Força o publicPath para assets em web builds
+config.transformer.publicPath = '/CICB/';
 
-module.exports = defaultConfig;
+module.exports = config;
