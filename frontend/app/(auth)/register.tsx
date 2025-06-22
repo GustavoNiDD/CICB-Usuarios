@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'; // Importe useLoc
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../utils/firebaseConfig'; // Sua instância do Firebase auth
 
-const BACKEND_BASE_URL = 'http://localhost:8080'; // Certifique-se de que este é o seu backend real
+const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; // Certifique-se de que este é o seu backend real
 
 const RegisterPage = () => {
   const [email, setEmail] = useState('');
