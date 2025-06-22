@@ -10,7 +10,7 @@ import { auth } from '../../utils/firebaseConfig';
 // Importação da nova biblioteca de datas
 import { DatePickerModal, registerTranslation } from 'react-native-paper-dates';
 
-// Registra a tradução para português para o calendário
+// Registra a tradução para português para o calendário (COM A CORREÇÃO)
 registerTranslation('pt-BR', {
   save: 'Salvar',
   selectSingle: 'Selecione a data',
@@ -26,6 +26,8 @@ registerTranslation('pt-BR', {
   typeInDate: 'Digite a data',
   pickDateFromCalendar: 'Escolha a data do calendário',
   close: 'Fechar',
+  hour: 'Hora',
+  minute: 'Minuto',
 });
 
 // Use o URL do seu backend. Para testes locais com celular, use o IP da sua máquina.
@@ -167,7 +169,6 @@ const RegisterPage = () => {
             <TextInput label="Nome Completo" value={name} onChangeText={setName} style={styles.input} mode="outlined" />
             <TextInput label="E-mail" value={email} disabled style={styles.input} mode="outlined" />
             
-            {/* --- SELETOR DE DATA CORRIGIDO --- */}
             <TouchableOpacity onPress={() => setOpenDatePicker(true)}>
                 <View pointerEvents="none">
                     <TextInput 
@@ -192,7 +193,6 @@ const RegisterPage = () => {
                     }
                 }}
             />
-            {/* --- FIM DO SELETOR DE DATA --- */}
 
             <TextInput label="Telefone" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" style={styles.input} mode="outlined" />
             
