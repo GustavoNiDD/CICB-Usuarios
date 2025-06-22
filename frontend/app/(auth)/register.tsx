@@ -1,18 +1,45 @@
-// SUBSTITUA O CONTEÚDO DESTE ARQUIVO:
 // Caminho: frontend/app/(auth)/register.tsx
 
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { Text, TextInput, Button } from 'react-native-paper';
+import { Text, TextInput, Button, IconButton, Card } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../utils/firebaseConfig';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
-// ATENÇÃO: Use o URL do seu backend. Para testes locais com celular, use o IP da sua máquina.
-const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; // <<<<< IP DA SUA MÁQUINA >>>>>
+// Importação da nova biblioteca de datas
+import { DatePickerModal, registerTranslation } from 'react-native-paper-dates';
+
+// Registra a tradução para português para o calendário
+registerTranslation('pt-BR', {
+  save: 'Salvar',
+  selectSingle: 'Selecione a data',
+  selectMultiple: 'Selecione as datas',
+  selectRange: 'Selecione o período',
+  notAccordingToDateFormat: (inputFormat) => `Formato da data deve ser ${inputFormat}`,
+  mustBeHigherThan: (date) => `Deve ser depois de ${date}`,
+  mustBeLowerThan: (date) => `Deve ser antes de ${date}`,
+  mustBeBetween: (startDate, endDate) => `Deve ser entre ${startDate} - ${endDate}`,
+  dateIsDisabled: 'Dia não permitido',
+  previous: 'Anterior',
+  next: 'Próximo',
+  typeInDate: 'Digite a data',
+  pickDateFromCalendar: 'Escolha a data do calendário',
+  close: 'Fechar',
+});
+
+// Use o URL do seu backend. Para testes locais com celular, use o IP da sua máquina.
+const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; 
 
 type Role = 'ALUNO' | 'PROFESSOR' | 'ADMIN';
+
+// Tipo para as informações do responsável
+type ParentInfo = {
+    name: string;
+    email: string;
+    phoneNumber: string;
+    relationship: string;
+};
 
 const RegisterPage = () => {
     const router = useRouter();
@@ -24,8 +51,6 @@ const RegisterPage = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [name, setName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [street, setStreet] = useState('');
     const [number, setNumber] = useState('');
@@ -33,6 +58,14 @@ const RegisterPage = () => {
     const [state, setState] = useState('');
     const [zipCode, setZipCode] = useState('');
     const [enrollmentId, setEnrollmentId] = useState('');
+
+    // Estado para o seletor de data
+    const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
+    const [openDatePicker, setOpenDatePicker] = useState(false);
+
+    // Estados para os responsáveis
+    const [parents, setParents] = useState<ParentInfo[]>([]); 
+    const [currentParent, setCurrentParent] = useState<ParentInfo>({ name: '', email: '', phoneNumber: '', relationship: '' }); 
 
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +76,6 @@ const RegisterPage = () => {
             router.replace('/(auth)/login');
             return;
         }
-
         const validateToken = async () => {
             setIsLoading(true);
             try {
@@ -59,13 +91,26 @@ const RegisterPage = () => {
                 setIsLoading(false);
             }
         };
-
         validateToken();
     }, [invitationToken]);
+
+    const handleAddParent = () => {
+        if (!currentParent.name || !currentParent.relationship) {
+            Alert.alert('Erro', 'Preencha pelo menos o nome e a relação do responsável.');
+            return;
+        }
+        setParents([...parents, currentParent]);
+        setCurrentParent({ name: '', email: '', phoneNumber: '', relationship: '' });
+    };
+
+    const handleRemoveParent = (indexToRemove: number) => {
+        setParents(parents.filter((_, index) => index !== indexToRemove));
+    };
 
     const handleRegister = async () => {
         if (password !== confirmPassword) return Alert.alert('Erro', 'As senhas não coincidem.');
         if (password.length < 6) return Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.');
+        if (!dateOfBirth) return Alert.alert('Erro', 'Por favor, selecione sua data de nascimento.');
         
         setIsSubmitting(true);
         try {
@@ -84,7 +129,7 @@ const RegisterPage = () => {
                 },
                 studentDetails: role === 'ALUNO' ? {
                     enrollmentId,
-                    parents: [] 
+                    parents: parents 
                 } : null,
             };
 
@@ -96,7 +141,7 @@ const RegisterPage = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                await user.delete();
+                await user.delete(); // Deleta o usuário do Firebase se o backend falhar
                 throw new Error(errorData.message || 'Falha ao registrar no backend.');
             }
 
@@ -122,22 +167,33 @@ const RegisterPage = () => {
             <TextInput label="Nome Completo" value={name} onChangeText={setName} style={styles.input} mode="outlined" />
             <TextInput label="E-mail" value={email} disabled style={styles.input} mode="outlined" />
             
-            <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+            {/* --- SELETOR DE DATA CORRIGIDO --- */}
+            <TouchableOpacity onPress={() => setOpenDatePicker(true)}>
                 <View pointerEvents="none">
-                    <TextInput label="Data de Nascimento" value={dateOfBirth.toLocaleDateString('pt-BR')} style={styles.input} mode="outlined" right={<TextInput.Icon icon="calendar" />} />
+                    <TextInput 
+                        label="Data de Nascimento" 
+                        value={dateOfBirth ? dateOfBirth.toLocaleDateString('pt-BR') : ''}
+                        style={styles.input} 
+                        mode="outlined" 
+                        right={<TextInput.Icon icon="calendar" />} 
+                    />
                 </View>
             </TouchableOpacity>
-            {showDatePicker && (
-                <DateTimePicker
-                    value={dateOfBirth}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(event, selectedDate) => {
-                        setShowDatePicker(false);
-                        if (selectedDate) setDateOfBirth(selectedDate);
-                    }}
-                />
-            )}
+            <DatePickerModal
+                locale="pt-BR"
+                mode="single"
+                visible={openDatePicker}
+                onDismiss={() => setOpenDatePicker(false)}
+                date={dateOfBirth}
+                onConfirm={(params) => {
+                    setOpenDatePicker(false);
+                    if (params.date) {
+                       setDateOfBirth(params.date);
+                    }
+                }}
+            />
+            {/* --- FIM DO SELETOR DE DATA --- */}
+
             <TextInput label="Telefone" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" style={styles.input} mode="outlined" />
             
             {role === 'ALUNO' && (
@@ -145,6 +201,22 @@ const RegisterPage = () => {
                     <Text style={styles.sectionTitle}>Detalhes do Aluno</Text>
                     <TextInput label="Matrícula (Opcional)" value={enrollmentId} onChangeText={setEnrollmentId} style={styles.input} mode="outlined" />
                     
+                    <Text style={styles.sectionTitle}>Responsáveis</Text>
+                    {parents.map((parent, index) => (
+                        <Card key={index} style={styles.card}>
+                            <Card.Title
+                                title={parent.name}
+                                subtitle={parent.relationship}
+                                right={(props) => <IconButton {...props} icon="delete" onPress={() => handleRemoveParent(index)} />}
+                            />
+                        </Card>
+                    ))}
+                    <TextInput label="Nome do Responsável" value={currentParent.name} onChangeText={(text) => setCurrentParent({...currentParent, name: text})} style={styles.input} mode="outlined" />
+                    <TextInput label="Relação (Pai, Mãe, etc)" value={currentParent.relationship} onChangeText={(text) => setCurrentParent({...currentParent, relationship: text})} style={styles.input} mode="outlined" />
+                    <TextInput label="E-mail do Responsável" value={currentParent.email} onChangeText={(text) => setCurrentParent({...currentParent, email: text})} keyboardType="email-address" style={styles.input} mode="outlined" />
+                    <TextInput label="Telefone do Responsável" value={currentParent.phoneNumber} onChangeText={(text) => setCurrentParent({...currentParent, phoneNumber: text})} keyboardType="phone-pad" style={styles.input} mode="outlined" />
+                    <Button mode="outlined" onPress={handleAddParent} style={styles.input}>Adicionar Responsável</Button>
+
                     <Text style={styles.sectionTitle}>Endereço</Text>
                     <TextInput label="CEP" value={zipCode} onChangeText={setZipCode} keyboardType="numeric" style={styles.input} mode="outlined" />
                     <TextInput label="Rua" value={street} onChangeText={setStreet} style={styles.input} mode="outlined" />
@@ -173,6 +245,7 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 10, borderTopColor: '#ddd', borderTopWidth: 1, paddingTop: 20 },
     input: { marginBottom: 15 },
     button: { marginTop: 20, paddingVertical: 8, marginBottom: 40 },
+    card: { marginBottom: 10, backgroundColor: 'white' },
 });
 
 export default RegisterPage;
