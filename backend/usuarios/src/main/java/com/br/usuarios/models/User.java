@@ -7,13 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.DBRef; // Importar DBRef
 import org.springframework.data.mongodb.core.mapping.Document;
 
-/**
- * Entidade que representa um usuário no MongoDB.
- * A anotação @Document mapeia esta classe para uma coleção no banco.
- */
-@Document(collection = "users") // Mapeia para a coleção "users" no MongoDB
+@Document(collection = "users")
 @Data
 @Builder
 @NoArgsConstructor
@@ -21,10 +18,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class User {
 
     @Id
-    private String id; // No MongoDB, o ID é tipicamente uma String (ObjectId)
+    private String id;
 
-    // UID do Firebase, usado como identificador único para sincronização.
-    // @Indexed(unique = true) garante que não haverá UIDs duplicados.
     @Indexed(unique = true)
     private String uid;
 
@@ -33,6 +28,13 @@ public class User {
 
     private String name;
 
-    // O Enum é salvo como uma String no documento.
     private Role role;
+
+    // 1. Perfil com informações comuns, que será um sub-documento.
+    private UserProfile profile;
+
+    // 2. Referência para os detalhes específicos do aluno.
+    //    Será nulo se o usuário não for um aluno.
+    @DBRef
+    private StudentDetails studentDetails;
 }

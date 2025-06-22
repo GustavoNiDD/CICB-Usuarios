@@ -1,236 +1,178 @@
+// SUBSTITUA O CONTEÚDO DESTE ARQUIVO:
 // Caminho: frontend/app/(auth)/register.tsx
 
-import React, { useState, useEffect } from 'react'; // Importe useEffect
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Alert, ActivityIndicator, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
-import { useRouter, useLocalSearchParams } from 'expo-router'; // Importe useLocalSearchParams
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../utils/firebaseConfig'; // Sua instância do Firebase auth
+import { auth } from '../../utils/firebaseConfig';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; // Certifique-se de que este é o seu backend real
+// ATENÇÃO: Use o URL do seu backend. Para testes locais com celular, use o IP da sua máquina.
+const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; // <<<<< IP DA SUA MÁQUINA >>>>>
+
+type Role = 'ALUNO' | 'PROFESSOR' | 'ADMIN';
 
 const RegisterPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+    const router = useRouter();
+    const { token: invitationToken } = useLocalSearchParams<{ token: string }>();
 
-  // NOVO: Hook para obter parâmetros da URL
-  const { token: invitationTokenFromUrl } = useLocalSearchParams();
-  const [invitationToken, setInvitationToken] = useState<string | string[] | null>(null);
+    // Estados do formulário
+    const [email, setEmail] = useState('');
+    const [role, setRole] = useState<Role | null>(null);
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [name, setName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [street, setStreet] = useState('');
+    const [number, setNumber] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('');
+    const [zipCode, setZipCode] = useState('');
+    const [enrollmentId, setEnrollmentId] = useState('');
 
-  // NOVO: useEffect para pegar o token da URL assim que o componente montar
-  useEffect(() => {
-    if (invitationTokenFromUrl) {
-      setInvitationToken(invitationTokenFromUrl);
-      console.log('✅ Token de convite encontrado na URL:', invitationTokenFromUrl);
-      // Opcional: Se o email do convite puder ser pré-preenchido, você faria isso aqui.
-    } else {
-      console.log('ℹ️ Nenhum token de convite encontrado na URL.');
-      // Opcional: Alertar o usuário ou redirecioná-lo se um token for obrigatório para o registro
-      // Alert.alert("Convite Necessário", "Você precisa de um link de convite para se registrar.");
-      // router.replace('/(auth)/login');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!invitationToken) {
+            Alert.alert('Erro', 'Token de convite não encontrado. Use o link enviado para o seu e-mail.');
+            router.replace('/(auth)/login');
+            return;
+        }
+
+        const validateToken = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch(`${BACKEND_BASE_URL}/public/register/validate/${invitationToken}`);
+                if (!response.ok) throw new Error('Convite inválido');
+                const data: { email: string; role: Role } = await response.json();
+                setEmail(data.email);
+                setRole(data.role);
+            } catch (error) {
+                Alert.alert('Erro', 'Seu link de convite é inválido, expirou ou já foi utilizado.');
+                router.replace('/(auth)/login');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        validateToken();
+    }, [invitationToken]);
+
+    const handleRegister = async () => {
+        if (password !== confirmPassword) return Alert.alert('Erro', 'As senhas não coincidem.');
+        if (password.length < 6) return Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.');
+        
+        setIsSubmitting(true);
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            const creationDto = {
+                uid: user.uid,
+                email: user.email,
+                name,
+                role,
+                profile: {
+                    dateOfBirth: dateOfBirth.toISOString().split('T')[0],
+                    phoneNumber,
+                    address: { street, number, city, state, zipCode, complement: '' },
+                },
+                studentDetails: role === 'ALUNO' ? {
+                    enrollmentId,
+                    parents: [] 
+                } : null,
+            };
+
+            const response = await fetch(`${BACKEND_BASE_URL}/public/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(creationDto),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                await user.delete();
+                throw new Error(errorData.message || 'Falha ao registrar no backend.');
+            }
+
+            Alert.alert('Sucesso!', 'Sua conta foi criada com sucesso. Faça o login para continuar.');
+            router.replace('/(auth)/login');
+
+        } catch (error: any) {
+            Alert.alert('Erro no Registro', error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    if (isLoading) {
+        return <View style={styles.loadingContainer}><ActivityIndicator size="large" /></View>;
     }
-  }, [invitationTokenFromUrl]);
 
+    return (
+        <ScrollView contentContainerStyle={styles.container}>
+            <Text style={styles.title}>Complete seu Cadastro</Text>
+            <Text style={styles.subtitle}>Seu papel será: {role}</Text>
+            
+            <TextInput label="Nome Completo" value={name} onChangeText={setName} style={styles.input} mode="outlined" />
+            <TextInput label="E-mail" value={email} disabled style={styles.input} mode="outlined" />
+            
+            <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                <View pointerEvents="none">
+                    <TextInput label="Data de Nascimento" value={dateOfBirth.toLocaleDateString('pt-BR')} style={styles.input} mode="outlined" right={<TextInput.Icon icon="calendar" />} />
+                </View>
+            </TouchableOpacity>
+            {showDatePicker && (
+                <DateTimePicker
+                    value={dateOfBirth}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                        setShowDatePicker(false);
+                        if (selectedDate) setDateOfBirth(selectedDate);
+                    }}
+                />
+            )}
+            <TextInput label="Telefone" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" style={styles.input} mode="outlined" />
+            
+            {role === 'ALUNO' && (
+                <>
+                    <Text style={styles.sectionTitle}>Detalhes do Aluno</Text>
+                    <TextInput label="Matrícula (Opcional)" value={enrollmentId} onChangeText={setEnrollmentId} style={styles.input} mode="outlined" />
+                    
+                    <Text style={styles.sectionTitle}>Endereço</Text>
+                    <TextInput label="CEP" value={zipCode} onChangeText={setZipCode} keyboardType="numeric" style={styles.input} mode="outlined" />
+                    <TextInput label="Rua" value={street} onChangeText={setStreet} style={styles.input} mode="outlined" />
+                    <TextInput label="Número" value={number} onChangeText={setNumber} keyboardType="numeric" style={styles.input} mode="outlined" />
+                    <TextInput label="Cidade" value={city} onChangeText={setCity} style={styles.input} mode="outlined" />
+                    <TextInput label="Estado (UF)" value={state} onChangeText={setState} maxLength={2} style={styles.input} mode="outlined" />
+                </>
+            )}
 
-  const handleRegister = async () => {
-    console.log('--- handleRegister foi chamado ---');
+            <Text style={styles.sectionTitle}>Defina sua Senha</Text>
+            <TextInput label="Senha" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} mode="outlined" />
+            <TextInput label="Confirmar Senha" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry style={styles.input} mode="outlined" />
 
-    // Novos logs para depuração
-    console.log('Verificando campos...');
-    if (!email || !password || !confirmPassword) {
-      console.log('Erro de validação: campos vazios');
-      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
-      return;
-    }
-    console.log('Campos preenchidos.');
-
-    console.log('Verificando senhas...');
-    if (password !== confirmPassword) {
-      console.log('Erro de validação: senhas não coincidem');
-      Alert.alert('Erro', 'As senhas não coincidem.');
-      return;
-    }
-    console.log('Senhas coincidem.');
-
-    console.log('Verificando comprimento da senha...');
-    if (password.length < 6) {
-      console.log('Erro de validação: senha curta');
-      Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-    console.log('Comprimento da senha OK.');
-
-    setIsLoading(true);
-    console.log('Iniciando bloco try...catch para createUserWithEmailAndPassword...');
-    try {
-      // 1. Cria o usuário no Firebase Authentication
-      console.log('Tentando chamar createUserWithEmailAndPassword...');
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('✅ Usuário Firebase criado:', userCredential.user.email);
-
-      // NOVO: 2. Obter o ID Token do Firebase para autenticar no backend
-      const firebaseIdToken = await userCredential.user.getIdToken();
-      console.log('🚀 ID Token do Firebase obtido (parcial):', firebaseIdToken.substring(0, 30) + '...');
-
-      // NOVO: 3. Chamar o endpoint de registro do backend para atribuir o papel
-      console.log('Chamando backend para completar o registro e atribuir papel...');
-      const backendResponse = await fetch(`${BACKEND_BASE_URL}/public/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Não precisa de Authorization aqui, pois é um endpoint /public
-          // O token FirebaseIdToken é enviado no corpo da requisição conforme seu DTO
-        },
-        body: JSON.stringify({
-          firebaseIdToken: firebaseIdToken,
-          invitationToken: invitationToken // Envia o token extraído da URL
-        }),
-      });
-
-      if (!backendResponse.ok) {
-        const errorData = await backendResponse.json();
-        console.error('🚨 Erro no Backend ao completar registro:', backendResponse.status, errorData);
-        Alert.alert('Erro no Registro', `Falha ao finalizar o registro no backend: ${errorData.message || backendResponse.statusText}`);
-        // IMPORTANTE: Se o registro no backend falhar, você pode querer deletar o usuário do Firebase
-        // para evitar contas "órfãs" sem papel.
-        await userCredential.user.delete();
-        console.warn('⚠️ Usuário Firebase deletado devido a falha no registro do backend.');
-        return;
-      }
-
-      const backendUserData = await backendResponse.json();
-      console.log('✅ Registro no backend (atribuição de papel) concluído. Dados do usuário:', backendUserData);
-
-      Alert.alert('Sucesso', 'Sua conta foi criada e seu papel atribuído! Agora faça o login.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') },
-      ]);
-
-    } catch (error: any) {
-      console.error('🚨 Erro CAPTURADO no try/catch:', error);
-      let errorMessage = 'Não foi possível criar a conta. Tente novamente.';
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Este e-mail já está em uso.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'O formato do e-mail é inválido.';
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'A senha é muito fraca. Escolha uma mais forte.';
-      } else if (error.message && error.message.includes("auth is not initialized")) {
-          errorMessage = "Erro de inicialização do Firebase Auth. Verifique seu firebaseConfig.ts";
-      }
-      Alert.alert('Erro de Registro', errorMessage);
-    } finally {
-      setIsLoading(false);
-      console.log('Finally block executado. isLoading definido como false.');
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Criar Nova Conta</Text>
-
-      <TextInput
-        label="E-mail"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        style={styles.input}
-        mode="outlined"
-      />
-      <TextInput
-        label="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-        mode="outlined"
-      />
-      <TextInput
-        label="Confirmar Senha"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        style={styles.input}
-        mode="outlined"
-      />
-
-      <Button
-        mode="contained"
-        onPress={handleRegister}
-        loading={isLoading}
-        disabled={isLoading || !invitationToken} // Desabilita se não houver token (opcional, mas recomendado)
-        style={styles.button}
-        labelStyle={styles.buttonText}
-      >
-        {isLoading ? 'Registrando...' : 'Registrar'}
-      </Button>
-
-      <Button
-        mode="text"
-        onPress={() => router.replace('/(auth)/login')}
-        style={styles.textButton}
-        labelStyle={styles.textButtonLabel}
-      >
-        Já tem uma conta? Faça login.
-      </Button>
-
-      {/* NOVO: Aviso se não houver token de convite */}
-      {!invitationToken && (
-        <Text style={styles.warningText}>
-          Atenção: Nenhum token de convite encontrado na URL. Seu registro pode não atribuir um papel específico.
-        </Text>
-      )}
-    </View>
-  );
+            <Button mode="contained" onPress={handleRegister} loading={isSubmitting} disabled={isSubmitting} style={styles.button}>
+                Finalizar Cadastro
+            </Button>
+        </ScrollView>
+    );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f0f2f5',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333',
-  },
-  input: {
-    width: '100%',
-    marginBottom: 15,
-    backgroundColor: 'white',
-  },
-  button: {
-    width: '100%',
-    paddingVertical: 8,
-    marginTop: 20,
-    backgroundColor: '#007bff',
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  textButton: {
-    marginTop: 15,
-  },
-  textButtonLabel: {
-    color: '#007bff',
-  },
-  // NOVO: Estilo para a mensagem de aviso
-  warningText: {
-    marginTop: 20,
-    fontSize: 14,
-    color: '#FF6347', // Cor de alerta
-    textAlign: 'center',
-    paddingHorizontal: 15,
-  },
+    container: { padding: 20, backgroundColor: '#f0f2f5' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
+    subtitle: { fontSize: 18, textAlign: 'center', marginBottom: 20, color: 'gray' },
+    sectionTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 10, borderTopColor: '#ddd', borderTopWidth: 1, paddingTop: 20 },
+    input: { marginBottom: 15 },
+    button: { marginTop: 20, paddingVertical: 8, marginBottom: 40 },
 });
 
 export default RegisterPage;

@@ -1,340 +1,189 @@
+// SUBSTITUA O CONTEÚDO DESTE ARQUIVO:
 // Caminho: frontend/app/(pages)/home.tsx
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, Modal, TextInput, TouchableOpacity } from 'react-native';
-import { Text, Button } from 'react-native-paper'; // Reintroduzindo Text e Button do Paper para melhor estética
+import { View, StyleSheet, Alert, ActivityIndicator, Modal, TextInput as RNTextInput } from 'react-native';
+import { Text, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { getAuth, signOut } from 'firebase/auth'; // Importa signOut do Firebase Auth
-import { auth } from '../../utils/firebaseConfig'; // Importa a instância auth
+import { signOut } from 'firebase/auth';
+import { auth } from '../../utils/firebaseConfig';
 
-// <<<<< ENDEREÇO IP ATUALIZADO >>>>>
-// Com base no seu 'ipconfig', este é o provável IP da sua máquina na rede local.
-// Se estiver testando no NAVEGADOR WEB no seu PC, 'http://localhost:8080' também funcionaria.
+// ATENÇÃO: Use o URL do seu backend. Para testes locais com celular, use o IP da sua máquina.
 const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; // <<<<< IP DA SUA MÁQUINA >>>>>
 
-
-// Definição da interface para o UserDto que virá do backend
-interface UserDto {
-  uid: string;
-  email: string;
-  role: 'ADMIN' | 'PROFESSOR' | 'ALUNO' | 'OTHER'; // Adapte os papéis conforme seu backend
-  // Adicione outros campos do UserDto aqui, se necessário
+// --- NOVAS INTERFACES TYPESCRIPT ---
+interface Address {
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    zipCode: string;
 }
+interface UserProfile {
+    dateOfBirth: string;
+    phoneNumber: string;
+    address: Address;
+}
+interface StudentDetails {
+    id: string;
+    enrollmentId: string;
+    parents: any[]; // Simplificado por enquanto
+}
+interface UserDetailsDto {
+    id: string;
+    uid: string;
+    email: string;
+    name: string;
+    role: 'ADMIN' | 'PROFESSOR' | 'ALUNO';
+    profile: UserProfile | null;
+    studentDetails: StudentDetails | null;
+}
+// --- FIM DAS INTERFACES ---
 
 const HomePage = () => {
-  const router = useRouter();
-  const [userRole, setUserRole] = useState<string | null>(null); // Estado para armazenar o papel do usuário
-  const [isRoleLoading, setIsRoleLoading] = useState<boolean>(true); // Estado para indicar carregamento do papel
-  const [showInviteModal, setShowInviteModal] = useState<boolean>(false); // Novo estado para controlar o modal
-  const [professorEmail, setProfessorEmail] = useState<string>(''); // Estado para o email do professor
-  const [isInviting, setIsInviting] = useState<boolean>(false); // Estado para o carregamento do convite
+    const router = useRouter();
+    const [userData, setUserData] = useState<UserDetailsDto | null>(null); // Armazena todos os dados do usuário
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    
+    // --- LÓGICA DO MODAL ---
+    const [showInviteModal, setShowInviteModal] = useState<boolean>(false);
+    const [inviteEmail, setInviteEmail] = useState<string>('');
+    const [inviteRole, setInviteRole] = useState<'PROFESSOR' | 'ALUNO'>('PROFESSOR');
+    const [isInviting, setIsInviting] = useState<boolean>(false);
 
-  // Função para lidar com o logout
-  const handleLogout = async () => {
-    try {
-      await signOut(auth); // Desloga o usuário do Firebase
-      console.log('✅ Logout bem-sucedido!');
-      router.replace('/(auth)/login'); // Redireciona para a tela de login
-    } catch (error) {
-      console.error('🚨 Erro ao fazer logout:', error);
-      Alert.alert('Erro', 'Não foi possível fazer logout. Tente novamente.');
-    }
-  };
+    useEffect(() => {
+        const fetchUserData = async () => {
+            setIsLoading(true);
+            const firebaseUser = auth.currentUser;
+            if (!firebaseUser) {
+                setIsLoading(false);
+                router.replace('/(auth)/login');
+                return;
+            }
+            try {
+                const idToken = await firebaseUser.getIdToken();
+                const response = await fetch(`${BACKEND_BASE_URL}/api/users/me`, {
+                    headers: { 'Authorization': `Bearer ${idToken}` },
+                });
+                if (!response.ok) throw new Error('Falha ao buscar dados do usuário.');
+                const data: UserDetailsDto = await response.json();
+                setUserData(data);
+            } catch (error) {
+                console.error('Erro ao buscar perfil do usuário:', error);
+                Alert.alert('Erro', 'Não foi possível carregar seu perfil.');
+                signOut(auth);
+                router.replace('/(auth)/login');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchUserData();
+    }, []);
 
-  // useEffect para buscar o papel do usuário quando o componente monta ou o usuário muda
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      setIsRoleLoading(true); // Inicia o carregamento do papel
-      const firebaseUser = auth.currentUser; // Obtém o usuário Firebase atualmente logado
-
-      if (!firebaseUser) {
-        setUserRole(null);
-        setIsRoleLoading(false);
-        return;
-      }
-
-      try {
-        const idToken = await firebaseUser.getIdToken();
-        console.log('🚀 ID Token obtido (parcial):', idToken); 
-
-        const response = await fetch(`${BACKEND_BASE_URL}/api/users/me`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('🚨 Erro ao buscar papel do usuário no backend:', response.status, errorData);
-          Alert.alert('Erro', `Não foi possível carregar seu perfil: ${errorData.message || response.statusText}`);
-          setUserRole(null);
-          return;
-        }
-
-        const userData: UserDto = await response.json();
-        console.log('✅ Dados do usuário do backend:', userData);
-        setUserRole(userData.role);
-
-      } catch (error) {
-        console.error('🚨 Erro na comunicação com o backend ou ao obter token:', error);
-        Alert.alert('Erro', 'Problema de conexão com o servidor. Verifique o BACKEND_BASE_URL e se o backend está rodando e acessível na rede.');
-        setUserRole(null);
-      } finally {
-        setIsRoleLoading(false);
-      }
+    const handleLogout = async () => {
+        await signOut(auth);
+        router.replace('/(auth)/login');
     };
 
-    fetchUserRole();
-  }, []);
+    const openInviteModal = (role: 'PROFESSOR' | 'ALUNO') => {
+        setInviteRole(role);
+        setShowInviteModal(true);
+    };
+    
+    const handleInvite = async () => {
+        if (!inviteEmail) return Alert.alert('Erro', 'Por favor, insira um e-mail.');
+        setIsInviting(true);
+        try {
+            const idToken = await auth.currentUser?.getIdToken();
+            const response = await fetch(`${BACKEND_BASE_URL}/api/admin/invitations`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${idToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Falha ao enviar convite');
+            }
+            Alert.alert('Sucesso', `Convite para ${inviteRole.toLowerCase()} enviado para ${inviteEmail}!`);
+            setShowInviteModal(false);
+            setInviteEmail('');
+        } catch (error: any) {
+            Alert.alert('Erro', error.message);
+        } finally {
+            setIsInviting(false);
+        }
+    };
 
-  // --- NOVA FUNÇÃO PARA ENVIAR CONVITE ---
-  const handleInviteProfessor = async () => {
-    if (!professorEmail) {
-      Alert.alert('Erro', 'Por favor, insira o e-mail do professor.');
-      return;
+    if (isLoading) {
+        return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#007bff" /></View>;
     }
 
-    setIsInviting(true); // Inicia o carregamento do convite
-    const firebaseUser = auth.currentUser;
-
-    if (!firebaseUser) {
-      Alert.alert('Erro', 'Usuário não autenticado para enviar convite.');
-      setIsInviting(false);
-      return;
-    }
-
-    try {
-      const idToken = await firebaseUser.getIdToken();
-      console.log('💌 Enviando convite com ID Token (parcial):', idToken.substring(0, 30) + '...');
-
-      const response = await fetch(`${BACKEND_BASE_URL}/api/admin/invitations`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: professorEmail, role: 'PROFESSOR' }), // Envia o email e o papel "PROFESSOR"
-      });
-
-      if (response.ok) {
-        Alert.alert('Sucesso', `Convite enviado para ${professorEmail} com sucesso!`);
-        setProfessorEmail(''); // Limpa o campo
-        setShowInviteModal(false); // Fecha o modal
-      } else {
-        const errorData = await response.json();
-        console.error('🚨 Erro ao enviar convite:', response.status, errorData);
-        Alert.alert('Erro', `Falha ao enviar convite: ${errorData.message || response.statusText}`);
-      }
-    } catch (error) {
-      console.error('🚨 Erro na requisição de convite:', error);
-      Alert.alert('Erro', 'Não foi possível enviar o convite. Verifique sua conexão e o backend.');
-    } finally {
-      setIsInviting(false); // Finaliza o carregamento do convite
-    }
-  };
-  // --- FIM DA NOVA FUNÇÃO ---
-
-  if (isRoleLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Carregando perfil...</Text>
-      </View>
-    );
-  }
+        <View style={styles.container}>
+            <Text style={styles.title}>Bem-vindo, {userData?.name || 'Usuário'}!</Text>
+            <Text style={styles.subtitle}>Você está logado como: {userData?.role}</Text>
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Bem-vindo!</Text>
-      <Text style={styles.subtitle}>Você acessou a área principal do aplicativo.</Text>
+            {userData?.role === 'ADMIN' && (
+                <View style={styles.adminSection}>
+                    <Text style={styles.adminTitle}>Painel do Administrador</Text>
+                    <Button mode="contained" onPress={() => openInviteModal('PROFESSOR')} style={styles.button}>
+                        Convidar Professor
+                    </Button>
+                    <Button mode="contained" onPress={() => openInviteModal('ALUNO')} style={styles.button}>
+                        Convidar Aluno
+                    </Button>
+                </View>
+            )}
 
-      {userRole && <Text style={styles.roleText}>Seu papel: {userRole}</Text>}
-
-      {/* Botão "Cadastrar Professor" (apenas se for ADMIN) */}
-      {userRole === 'ADMIN' && (
-        <Button
-          mode="contained"
-          onPress={() => setShowInviteModal(true)} // Abre o modal
-          style={styles.adminButton}
-          labelStyle={styles.adminButtonText}
-        >
-          Cadastrar Professor
-        </Button>
-      )}
-
-      <Button
-        mode="contained"
-        onPress={handleLogout}
-        style={styles.logoutButton}
-        labelStyle={styles.logoutButtonText}
-      >
-        Sair
-      </Button>
-
-      {/* --- MODAL PARA CADASTRO DE PROFESSOR --- */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showInviteModal}
-        onRequestClose={() => setShowInviteModal(false)}
-      >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Convidar Novo Professor</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="E-mail do professor"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={professorEmail}
-              onChangeText={setProfessorEmail}
-            />
-            <Button
-              mode="contained"
-              onPress={handleInviteProfessor}
-              loading={isInviting}
-              disabled={isInviting}
-              style={styles.inviteButton}
-              labelStyle={styles.inviteButtonText}
-            >
-              {isInviting ? 'Enviando...' : 'Enviar Convite'}
+            <Button mode="outlined" onPress={handleLogout} style={styles.logoutButton}>
+                Sair
             </Button>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setProfessorEmail(''); // Limpa o campo ao fechar
-                setShowInviteModal(false);
-              }}
-              style={styles.cancelButton}
-              labelStyle={styles.cancelButtonText}
-            >
-              Cancelar
-            </Button>
-          </View>
+
+            <Modal visible={showInviteModal} onRequestClose={() => setShowInviteModal(false)} transparent>
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalTitle}>Convidar Novo {inviteRole === 'PROFESSOR' ? 'Professor' : 'Aluno'}</Text>
+                        <RNTextInput
+                            style={styles.input}
+                            placeholder="E-mail do convidado"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            value={inviteEmail}
+                            onChangeText={setInviteEmail}
+                        />
+                        <Button mode="contained" onPress={handleInvite} loading={isInviting} disabled={isInviting}>
+                            {isInviting ? 'Enviando...' : 'Enviar Convite'}
+                        </Button>
+                        <Button mode="text" onPress={() => setShowInviteModal(false)} style={{marginTop: 10}}>
+                            Cancelar
+                        </Button>
+                    </View>
+                </View>
+            </Modal>
         </View>
-      </Modal>
-      {/* --- FIM DO MODAL --- */}
-
-    </View>
-  );
+    );
 };
 
+// ... (Estilos - podem ser mantidos ou adaptados)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    padding: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#555',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  roleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50', // Verde para destaque do papel
-    marginBottom: 20,
-  },
-  adminButton: {
-    marginTop: 20,
-    paddingVertical: 8,
-    backgroundColor: '#007bff', // Azul para o botão de admin
-  },
-  adminButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  logoutButton: {
-    marginTop: 30, // Mais espaçamento para o botão de sair
-    paddingVertical: 8,
-    backgroundColor: '#dc3545', // Cor vermelha para o botão de sair
-  },
-  logoutButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  // --- Estilos do Modal ---
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)', // Fundo escuro transparente
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: '80%', // Largura do modal
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
-  },
-  input: {
-    width: '100%',
-    padding: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    fontSize: 16,
-  },
-  inviteButton: {
-    backgroundColor: '#28a745', // Verde para o botão de enviar
-    marginTop: 10,
-    paddingVertical: 8,
-  },
-  inviteButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  cancelButton: {
-    marginTop: 10,
-    paddingVertical: 8,
-    borderColor: '#6c757d', // Cinza para o botão cancelar
-    borderWidth: 1,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#6c757d',
-  },
+    container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f0f2f5' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    title: { fontSize: 28, fontWeight: 'bold', marginBottom: 10 },
+    subtitle: { fontSize: 18, color: 'gray', marginBottom: 30 },
+    adminSection: { width: '100%', alignItems: 'center', padding: 20, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, marginBottom: 30 },
+    adminTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+    button: { width: '80%', marginVertical: 10 },
+    logoutButton: { width: '80%', borderColor: 'red' },
+    centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+    modalView: { margin: 20, backgroundColor: 'white', borderRadius: 20, padding: 35, alignItems: 'center', width: '90%' },
+    modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+    input: { width: '100%', height: 50, borderColor: '#ccc', borderWidth: 1, borderRadius: 8, paddingHorizontal: 15, marginBottom: 15, fontSize: 16 }
 });
+
 
 export default HomePage;
