@@ -76,7 +76,7 @@ const RegisterPage = () => {
     useEffect(() => {
         const loadSound = async () => {
             const { sound } = await Audio.Sound.createAsync(
-               require('../../../assets/audio/Stardew Valley OST - Cloud Country.mp3'),
+               require('../../assets/audio/Stardew Valley OST - Cloud Country.mp3'),
                { isLooping: true } 
             );
             setSound(sound);
