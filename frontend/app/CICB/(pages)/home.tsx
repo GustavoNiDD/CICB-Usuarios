@@ -5,7 +5,7 @@ import { View, StyleSheet, Alert, ActivityIndicator, Modal, TextInput, Touchable
 import { Text, Button } from 'react-native-paper'; // Reintroduzindo Text e Button do Paper para melhor estética
 import { useRouter } from 'expo-router';
 import { getAuth, signOut } from 'firebase/auth'; // Importa signOut do Firebase Auth
-import { auth } from '../../utils/firebaseConfig'; // Importa a instância auth
+import { auth } from '../../../utils/firebaseConfig'; // Importa a instância auth
 
 // <<<<< ENDEREÇO IP ATUALIZADO >>>>>
 // Com base no seu 'ipconfig', este é o provável IP da sua máquina na rede local.

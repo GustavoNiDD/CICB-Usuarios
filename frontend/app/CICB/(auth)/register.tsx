@@ -5,7 +5,7 @@ import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router'; // Importe useLocalSearchParams
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../utils/firebaseConfig'; // Sua instância do Firebase auth
+import { auth } from '../../../utils/firebaseConfig'; // Sua instância do Firebase auth
 
 const BACKEND_BASE_URL = 'http://localhost:8080'; // Certifique-se de que este é o seu backend real
 
