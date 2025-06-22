@@ -9,7 +9,7 @@ fetch('https://pessoas-api-c5ef63b1acc3.herokuapp.com/api/users/me', {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
     return response.json();
-  }) 
+  })
   .then(data => {
     console.log(data);
   })  
