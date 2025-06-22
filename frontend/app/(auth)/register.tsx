@@ -7,9 +7,10 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../utils/firebaseConfig';
 import { DatePickerModal, registerTranslation } from 'react-native-paper-dates';
+// Para o player de áudio da tela
 import { Audio } from 'expo-av';
 
-// Registra a tradução para português para o calendário (COMPLETO)
+// Configura o idioma do calendário para português
 registerTranslation('pt-BR', {
     save: 'Salvar',
     selectSingle: 'Selecione a data',
@@ -29,16 +30,22 @@ registerTranslation('pt-BR', {
     minute: 'Minuto',
 });
 
+// URL da API de backend
 const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; 
 
+// Tipos de papéis e dados da aplicação
 type Role = 'ALUNO' | 'PROFESSOR' | 'ADMIN';
 type ParentInfo = { name: string; email: string; phoneNumber: string; relationship: string; };
 
 const RegisterPage = () => {
     const router = useRouter();
     const { token: invitationToken } = useLocalSearchParams<{ token: string }>();
+
+    // Estados para o player de música
     const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+
+    // Estados para os campos do formulário
     const [email, setEmail] = useState('');
     const [role, setRole] = useState<Role | null>(null);
     const [password, setPassword] = useState('');
@@ -58,9 +65,11 @@ const RegisterPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Hook para cuidar do ciclo de vida da música: carrega ao focar na tela, descarrega ao sair.
     useFocusEffect(
         React.useCallback(() => {
             let soundObject: Audio.Sound | null = null;
+            
             const loadSound = async () => {
                 const { sound } = await Audio.Sound.createAsync(
                    require('../../assets/audio/Stardew Valley OST - Cloud Country.mp3'),
@@ -69,7 +78,10 @@ const RegisterPage = () => {
                 soundObject = sound;
                 setSound(soundObject);
             };
+
             loadSound();
+
+            // Função de limpeza para evitar vazamento de memória quando o componente perde o foco
             return () => {
                 if (soundObject) {
                     soundObject.unloadAsync();
@@ -79,6 +91,7 @@ const RegisterPage = () => {
         }, [])
     );
 
+    // Alterna entre play e pause para o som de fundo
     const handlePlayPause = async () => {
         if (!sound) return;
         if (isPlaying) {
@@ -89,10 +102,97 @@ const RegisterPage = () => {
         setIsPlaying(!isPlaying);
     };
     
-    const handleAddParent = () => { if (!currentParent.name || !currentParent.relationship) { Alert.alert('Erro', 'Preencha pelo menos o nome e a relação do responsável.'); return; } setParents([...parents, currentParent]); setCurrentParent({ name: '', email: '', phoneNumber: '', relationship: '' }); };
-    const handleRemoveParent = (indexToRemove: number) => { setParents(parents.filter((_, index) => index !== indexToRemove)); };
-    const handleRegister = async () => { if (password !== confirmPassword) return Alert.alert('Erro', 'As senhas não coincidem.'); if (password.length < 6) return Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.'); if (!dateOfBirth) return Alert.alert('Erro', 'Por favor, selecione sua data de nascimento.'); setIsSubmitting(true); try { const userCredential = await createUserWithEmailAndPassword(auth, email, password); const user = userCredential.user; const creationDto = { uid: user.uid, email: user.email, name, role, profile: { dateOfBirth: dateOfBirth.toISOString().split('T')[0], phoneNumber, address: { street, number, city, state, zipCode, complement: '' }, }, studentDetails: role === 'ALUNO' ? { enrollmentId, parents: parents } : null, }; const response = await fetch(`${BACKEND_BASE_URL}/public/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(creationDto), }); if (!response.ok) { const errorData = await response.json(); await user.delete(); throw new Error(errorData.message || 'Falha ao registrar no backend.'); } Alert.alert('Sucesso!', 'Sua conta foi criada com sucesso. Faça o login para continuar.'); router.replace('/(auth)/login'); } catch (error: any) { Alert.alert('Erro no Registro', error.message); } finally { setIsSubmitting(false); } };
-    useEffect(() => { if (!invitationToken) { Alert.alert('Erro', 'Token de convite não encontrado. Use o link enviado para o seu e-mail.'); router.replace('/(auth)/login'); return; } const validateToken = async () => { setIsLoading(true); try { const response = await fetch(`${BACKEND_BASE_URL}/public/register/validate/${invitationToken}`); if (!response.ok) throw new Error('Convite inválido'); const data: { email: string; role: Role } = await response.json(); setEmail(data.email); setRole(data.role); } catch (error) { Alert.alert('Erro', 'Seu link de convite é inválido, expirou ou já foi utilizado.'); router.replace('/(auth)/login'); } finally { setIsLoading(false); } }; validateToken(); }, [invitationToken]);
+    // Adiciona um responsável à lista temporária no estado do componente
+    const handleAddParent = () => {
+        if (!currentParent.name || !currentParent.relationship) {
+            Alert.alert('Erro', 'Preencha pelo menos o nome e a relação do responsável.');
+            return;
+        }
+        setParents([...parents, currentParent]);
+        setCurrentParent({ name: '', email: '', phoneNumber: '', relationship: '' });
+    };
+
+    // Remove um responsável da lista
+    const handleRemoveParent = (indexToRemove: number) => {
+        setParents(parents.filter((_, index) => index !== indexToRemove));
+    };
+
+    // Orquestra todo o processo de registro
+    const handleRegister = async () => {
+        if (password !== confirmPassword) return Alert.alert('Erro', 'As senhas não coincidem.');
+        if (password.length < 6) return Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.');
+        if (!dateOfBirth) return Alert.alert('Erro', 'Por favor, selecione sua data de nascimento.');
+
+        setIsSubmitting(true);
+        try {
+            // 1. Cria o usuário no Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // 2. Monta o DTO para enviar ao backend
+            const creationDto = {
+                uid: user.uid,
+                email: user.email,
+                name,
+                role,
+                profile: {
+                    dateOfBirth: dateOfBirth.toISOString().split('T')[0],
+                    phoneNumber,
+                    address: { street, number, city, state, zipCode, complement: '' },
+                },
+                studentDetails: role === 'ALUNO' ? {
+                    enrollmentId,
+                    parents: parents 
+                } : null,
+            };
+
+            // 3. Envia os dados para salvar no meu banco de dados
+            const response = await fetch(`${BACKEND_BASE_URL}/public/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(creationDto),
+            });
+
+            // Se o backend falhar, deleta o usuário do Firebase para manter a consistência
+            if (!response.ok) {
+                const errorData = await response.json();
+                await user.delete();
+                throw new Error(errorData.message || 'Falha ao registrar no backend.');
+            }
+
+            Alert.alert('Sucesso!', 'Sua conta foi criada com sucesso. Faça o login para continuar.');
+            router.replace('/(auth)/login');
+        } catch (error: any) {
+            Alert.alert('Erro no Registro', error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    // Valida o token do convite assim que a tela carrega
+    useEffect(() => {
+        if (!invitationToken) {
+            Alert.alert('Erro', 'Token de convite não encontrado. Use o link enviado para o seu e-mail.');
+            router.replace('/(auth)/login');
+            return;
+        }
+        const validateToken = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch(`${BACKEND_BASE_URL}/public/register/validate/${invitationToken}`);
+                if (!response.ok) throw new Error('Convite inválido');
+                const data: { email: string; role: Role } = await response.json();
+                setEmail(data.email);
+                setRole(data.role);
+            } catch (error) {
+                Alert.alert('Erro', 'Seu link de convite é inválido, expirou ou já foi utilizado.');
+                router.replace('/(auth)/login');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        validateToken();
+    }, [invitationToken]);
 
     if (isLoading) {
         return <View style={styles.loadingContainer}><ActivityIndicator size="large" /></View>;
@@ -100,7 +200,7 @@ const RegisterPage = () => {
 
     return (
         <ImageBackground
-            source={require('../../assets/images/backgroundRegister.png')}
+            source={require('../../assets/images/backgroundRegister.jpg')}
             style={styles.background}
             resizeMode="cover"
             blurRadius={1}
@@ -191,19 +291,23 @@ const RegisterPage = () => {
 };
 
 const styles = StyleSheet.create({
+    // Container principal que segura a imagem de fundo
     background: {
         flex: 1,
         width: '100%',
     },
+    // Camada para suavizar o fundo e garantir a legibilidade do formulário
     overlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(255, 255, 255, 0.75)',
     },
+    // Estilo do ScrollView que permite a rolagem e centraliza o conteúdo
     container: {
         flexGrow: 1,
         justifyContent: 'center',
         padding: 15,
     },
+    // Card principal onde o formulário é renderizado
     formCard: {
         backgroundColor: '#ffffff',
         borderRadius: 12,
@@ -214,6 +318,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
     },
+    // Estilo para a tela de carregamento
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 5, color: '#333' },
     subtitle: { fontSize: 18, textAlign: 'center', marginBottom: 20, color: 'gray' },
@@ -221,6 +326,7 @@ const styles = StyleSheet.create({
     input: { marginBottom: 15, backgroundColor: 'transparent' },
     button: { marginTop: 20, paddingVertical: 8, },
     card: { marginBottom: 10, backgroundColor: 'white' },
+    // Botão flutuante para controlar a música
     playPauseButton: {
         position: 'absolute',
         top: 15,
