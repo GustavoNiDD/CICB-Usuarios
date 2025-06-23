@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Platform, ImageBackground } from 'react-native';
-import { Text, TextInput, Button, IconButton, Card, Modal, Portal, Provider } from 'react-native-paper';
+import { Text, TextInput, Button, IconButton, Card, Modal, Portal, Provider, MD3LightTheme as DefaultTheme } from 'react-native-paper';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../utils/firebaseConfig';
@@ -36,6 +36,16 @@ const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com';
 // Tipos de papéis e dados da aplicação
 type Role = 'ALUNO' | 'PROFESSOR' | 'ADMIN';
 type ParentInfo = { name: string; email: string; phoneNumber: string; relationship: string; };
+
+// --- ALTERAÇÃO 1: Definindo um tema para escurecer as labels ---
+const theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    onSurfaceVariant: '#333', // Cor da label do TextInput no modo 'outlined'
+    primary: '#1E90FF', // Mantém a cor primária para quando o campo está focado
+  },
+};
 
 const RegisterPage = () => {
     const router = useRouter();
@@ -193,7 +203,6 @@ const RegisterPage = () => {
                 throw new Error(errorData.message || 'Falha ao registrar no backend.');
             }
             
-            // Usando o modal para sucesso também, para consistência, antes de redirecionar.
             setModalTitle('Sucesso!');
             setModalMessage('Sua conta foi criada. Você será redirecionado para o login.');
             setIsModalVisible(true);
@@ -244,106 +253,109 @@ const RegisterPage = () => {
     }
 
     return (
-        <Provider>
-            <ImageBackground
-                source={require('../../assets/images/backgroundRegister.png')}
-                style={styles.background}
-                resizeMode="cover"
-                blurRadius={1}
-            >
-                <View style={styles.overlay} />
+        // --- ALTERAÇÃO 2: Adicionando um View para garantir que o fundo ocupe toda a tela ---
+        <View style={{flex: 1}}> 
+            <Provider theme={theme}>
+                <ImageBackground
+                    source={require('../../assets/images/backgroundRegister.png')}
+                    style={styles.background}
+                    resizeMode="cover"
+                    blurRadius={1}
+                >
+                    <View style={styles.overlay} />
 
-                <Portal>
-                    <Modal visible={isModalVisible} onDismiss={() => setIsModalVisible(false)} contentContainerStyle={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>{modalTitle}</Text>
-                        <Text style={styles.modalMessage}>{modalMessage}</Text>
-                        <Button mode="contained" onPress={() => setIsModalVisible(false)} style={styles.modalButton}>
-                            OK
-                        </Button>
-                    </Modal>
-                </Portal>
-
-                <IconButton
-                    icon={isPlaying ? "pause-circle" : "play-circle"}
-                    iconColor={isPlaying ? "#FF6347" : "#1E90FF"}
-                    size={30}
-                    onPress={handlePlayPause}
-                    style={styles.playPauseButton}
-                />
-                
-                <ScrollView contentContainerStyle={styles.container}>
-                    <Card style={styles.formCard}>
-                        <Card.Content>
-                            <Text style={styles.title}>Complete seu Cadastro</Text>
-                            <Text style={styles.subtitle}>Seu papel será: {role}</Text>
-                            
-                            <TextInput label="Nome Completo" value={name} onChangeText={setName} style={styles.input} mode="outlined" />
-                            <TextInput label="E-mail" value={email} disabled style={styles.input} mode="outlined" />
-                            
-                            <TouchableOpacity onPress={() => setOpenDatePicker(true)}>
-                                <View pointerEvents="none">
-                                    <TextInput label="Data de Nascimento" value={dateOfBirth ? dateOfBirth.toLocaleDateString('pt-BR') : ''} style={styles.input} mode="outlined" right={<TextInput.Icon icon="calendar" />} />
-                                </View>
-                            </TouchableOpacity>
-                            
-                            <TextInput label="Telefone" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" style={styles.input} mode="outlined" />
-                            
-                            {role === 'ALUNO' && (
-                                <>
-                                    <Text style={styles.sectionTitle}>Detalhes do Aluno</Text>
-                                    <TextInput label="Matrícula (Opcional)" value={enrollmentId} onChangeText={setEnrollmentId} style={styles.input} mode="outlined" />
-                                    
-                                    <Text style={styles.sectionTitle}>Responsáveis</Text>
-                                    {parents.map((parent, index) => (
-                                        <Card key={index} style={styles.card}>
-                                            <Card.Title
-                                                title={parent.name}
-                                                subtitle={parent.relationship}
-                                                right={(props) => <IconButton {...props} icon="delete" onPress={() => handleRemoveParent(index)} />}
-                                            />
-                                        </Card>
-                                    ))}
-                                    <TextInput label="Nome do Responsável" value={currentParent.name} onChangeText={(text) => setCurrentParent({...currentParent, name: text})} style={styles.input} mode="outlined" />
-                                    <TextInput label="Relação (Pai, Mãe, etc)" value={currentParent.relationship} onChangeText={(text) => setCurrentParent({...currentParent, relationship: text})} style={styles.input} mode="outlined" />
-                                    <TextInput label="E-mail do Responsável (Opcional)" value={currentParent.email} onChangeText={(text) => setCurrentParent({...currentParent, email: text})} keyboardType="email-address" style={styles.input} mode="outlined" />
-                                    <TextInput label="Telefone do Responsável (Opcional)" value={currentParent.phoneNumber} onChangeText={(text) => setCurrentParent({...currentParent, phoneNumber: text})} keyboardType="phone-pad" style={styles.input} mode="outlined" />
-                                    <Button mode="outlined" onPress={handleAddParent} style={styles.input}>Adicionar Responsável</Button>
-
-                                    <Text style={styles.sectionTitle}>Endereço</Text>
-                                    <TextInput label="CEP" value={zipCode} onChangeText={setZipCode} keyboardType="numeric" style={styles.input} mode="outlined" />
-                                    <TextInput label="Rua" value={street} onChangeText={setStreet} style={styles.input} mode="outlined" />
-                                    <TextInput label="Número" value={number} onChangeText={setNumber} keyboardType="numeric" style={styles.input} mode="outlined" />
-                                    <TextInput label="Cidade" value={city} onChangeText={setCity} style={styles.input} mode="outlined" />
-                                    <TextInput label="Estado (UF)" value={state} onChangeText={setState} maxLength={2} style={styles.input} mode="outlined" />
-                                </>
-                            )}
-
-                            <Text style={styles.sectionTitle}>Defina sua Senha</Text>
-                            <TextInput label="Senha" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} mode="outlined" />
-                            <TextInput label="Confirmar Senha" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry style={styles.input} mode="outlined" />
-
-                            <Button mode="contained" onPress={handleRegister} loading={isSubmitting} disabled={isSubmitting} style={styles.button}>
-                                Finalizar Cadastro
+                    <Portal>
+                        <Modal visible={isModalVisible} onDismiss={() => setIsModalVisible(false)} contentContainerStyle={styles.modalContainer}>
+                            <Text style={styles.modalTitle}>{modalTitle}</Text>
+                            <Text style={styles.modalMessage}>{modalMessage}</Text>
+                            <Button mode="contained" onPress={() => setIsModalVisible(false)} style={styles.modalButton}>
+                                OK
                             </Button>
-                        </Card.Content>
-                    </Card>
-                </ScrollView>
+                        </Modal>
+                    </Portal>
 
-                 <DatePickerModal
-                    locale="pt-BR"
-                    mode="single"
-                    visible={openDatePicker}
-                    onDismiss={() => setOpenDatePicker(false)}
-                    date={dateOfBirth}
-                    onConfirm={(params) => {
-                        setOpenDatePicker(false);
-                        if (params.date) {
-                            setDateOfBirth(params.date);
-                        }
-                    }}
-                />
-            </ImageBackground>
-        </Provider>
+                    <IconButton
+                        icon={isPlaying ? "pause-circle" : "play-circle"}
+                        iconColor={isPlaying ? "#FF6347" : "#1E90FF"}
+                        size={30}
+                        onPress={handlePlayPause}
+                        style={styles.playPauseButton}
+                    />
+                    
+                    <ScrollView contentContainerStyle={styles.container}>
+                        <Card style={styles.formCard}>
+                            <Card.Content>
+                                <Text style={styles.title}>Complete seu Cadastro</Text>
+                                <Text style={styles.subtitle}>Seu papel será: {role}</Text>
+                                
+                                <TextInput label="Nome Completo" value={name} onChangeText={setName} style={styles.input} mode="outlined" />
+                                <TextInput label="E-mail" value={email} disabled style={styles.input} mode="outlined" />
+                                
+                                <TouchableOpacity onPress={() => setOpenDatePicker(true)}>
+                                    <View pointerEvents="none">
+                                        <TextInput label="Data de Nascimento" value={dateOfBirth ? dateOfBirth.toLocaleDateString('pt-BR') : ''} style={styles.input} mode="outlined" right={<TextInput.Icon icon="calendar" />} />
+                                    </View>
+                                </TouchableOpacity>
+                                
+                                <TextInput label="Telefone" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" style={styles.input} mode="outlined" />
+                                
+                                {role === 'ALUNO' && (
+                                    <>
+                                        <Text style={styles.sectionTitle}>Detalhes do Aluno</Text>
+                                        <TextInput label="Matrícula (Opcional)" value={enrollmentId} onChangeText={setEnrollmentId} style={styles.input} mode="outlined" />
+                                        
+                                        <Text style={styles.sectionTitle}>Responsáveis</Text>
+                                        {parents.map((parent, index) => (
+                                            <Card key={index} style={styles.card}>
+                                                <Card.Title
+                                                    title={parent.name}
+                                                    subtitle={parent.relationship}
+                                                    right={(props) => <IconButton {...props} icon="delete" onPress={() => handleRemoveParent(index)} />}
+                                                />
+                                            </Card>
+                                        ))}
+                                        <TextInput label="Nome do Responsável" value={currentParent.name} onChangeText={(text) => setCurrentParent({...currentParent, name: text})} style={styles.input} mode="outlined" />
+                                        <TextInput label="Relação (Pai, Mãe, etc)" value={currentParent.relationship} onChangeText={(text) => setCurrentParent({...currentParent, relationship: text})} style={styles.input} mode="outlined" />
+                                        <TextInput label="E-mail do Responsável (Opcional)" value={currentParent.email} onChangeText={(text) => setCurrentParent({...currentParent, email: text})} keyboardType="email-address" style={styles.input} mode="outlined" />
+                                        <TextInput label="Telefone do Responsável (Opcional)" value={currentParent.phoneNumber} onChangeText={(text) => setCurrentParent({...currentParent, phoneNumber: text})} keyboardType="phone-pad" style={styles.input} mode="outlined" />
+                                        <Button mode="outlined" onPress={handleAddParent} style={styles.input}>Adicionar Responsável</Button>
+
+                                        <Text style={styles.sectionTitle}>Endereço</Text>
+                                        <TextInput label="CEP" value={zipCode} onChangeText={setZipCode} keyboardType="numeric" style={styles.input} mode="outlined" />
+                                        <TextInput label="Rua" value={street} onChangeText={setStreet} style={styles.input} mode="outlined" />
+                                        <TextInput label="Número" value={number} onChangeText={setNumber} keyboardType="numeric" style={styles.input} mode="outlined" />
+                                        <TextInput label="Cidade" value={city} onChangeText={setCity} style={styles.input} mode="outlined" />
+                                        <TextInput label="Estado (UF)" value={state} onChangeText={setState} maxLength={2} style={styles.input} mode="outlined" />
+                                    </>
+                                )}
+
+                                <Text style={styles.sectionTitle}>Defina sua Senha</Text>
+                                <TextInput label="Senha" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} mode="outlined" />
+                                <TextInput label="Confirmar Senha" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry style={styles.input} mode="outlined" />
+
+                                <Button mode="contained" onPress={handleRegister} loading={isSubmitting} disabled={isSubmitting} style={styles.button}>
+                                    Finalizar Cadastro
+                                </Button>
+                            </Card.Content>
+                        </Card>
+                    </ScrollView>
+
+                    <DatePickerModal
+                        locale="pt-BR"
+                        mode="single"
+                        visible={openDatePicker}
+                        onDismiss={() => setOpenDatePicker(false)}
+                        date={dateOfBirth}
+                        onConfirm={(params) => {
+                            setOpenDatePicker(false);
+                            if (params.date) {
+                                setDateOfBirth(params.date);
+                            }
+                        }}
+                    />
+                </ImageBackground>
+            </Provider>
+        </View>
     );
 };
 
@@ -400,7 +412,7 @@ const styles = StyleSheet.create({
     },
     modalMessage: {
         fontSize: 16,
-        lineHeight: 24, // Melhora a legibilidade de múltiplas linhas
+        lineHeight: 24,
         marginBottom: 20,
     },
     modalButton: {
