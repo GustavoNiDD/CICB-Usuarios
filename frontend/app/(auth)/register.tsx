@@ -7,7 +7,6 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../utils/firebaseConfig';
 import { DatePickerModal, registerTranslation } from 'react-native-paper-dates';
-// Para o player de áudio da tela
 import { Audio } from 'expo-av';
 
 // Configura o idioma do calendário para português
@@ -37,13 +36,12 @@ const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com';
 type Role = 'ALUNO' | 'PROFESSOR' | 'ADMIN';
 type ParentInfo = { name: string; email: string; phoneNumber: string; relationship: string; };
 
-// --- ALTERAÇÃO 1: Definindo um tema para escurecer as labels ---
 const theme = {
     ...DefaultTheme,
     colors: {
         ...DefaultTheme.colors,
-        onSurfaceVariant: '#333', // Cor da label do TextInput no modo 'outlined'
-        primary: '#1E90FF', // Mantém a cor primária para quando o campo está focado
+        onSurfaceVariant: '#333',
+        primary: '#1E90FF',
     },
 };
 
@@ -77,17 +75,61 @@ const RegisterPage = () => {
     const [openDatePicker, setOpenDatePicker] = useState(false);
     const [parents, setParents] = useState<ParentInfo[]>([]);
     const [currentParent, setCurrentParent] = useState<ParentInfo>({ name: '', email: '', phoneNumber: '', relationship: '' });
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Função para exibir o modal de erro
+    // Estados de controle de fluxo da UI
+    const [isLoading, setIsLoading] = useState(true); // Para a validação inicial do token
+    const [isSubmitting, setIsSubmitting] = useState(false); // Para o envio do formulário
+    const [validationError, setValidationError] = useState<string | null>(null); // NOVO: Para erro fatal de validação
+
     const showErrorModal = (title: string, message: string) => {
         setModalTitle(title);
         setModalMessage(message);
         setIsModalVisible(true);
     };
 
-    // Hook para cuidar do ciclo de vida da música
+    // --- useEffect para validação do Token ---
+    // Este hook roda uma vez quando o componente carrega
+    useEffect(() => {
+        const validateToken = async () => {
+            if (!invitationToken) {
+                setValidationError('Token de convite não encontrado. Por favor, use o link que foi enviado para o seu e-mail.');
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                // *** ALTERAÇÃO PRINCIPAL AQUI: Usando query parameter ***
+                const response = await fetch(`${BACKEND_BASE_URL}/public/register/validate?token=${invitationToken}`);
+
+                if (!response.ok) {
+                    // Apanha erros 404 (inválido, expirado) ou outros erros do servidor
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Convite inválido, expirado ou já utilizado.');
+                }
+
+                const data: { email: string; role: Role } = await response.json();
+                setEmail(data.email);
+                setRole(data.role);
+            } catch (error: any) {
+                setValidationError(error.message || 'Ocorreu um erro ao validar seu convite.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        validateToken();
+    }, [invitationToken]);
+
+    // Exibe o modal assim que um erro de validação for definido
+    useEffect(() => {
+        if (validationError) {
+            showErrorModal('Erro no Convite', validationError);
+        }
+    }, [validationError]);
+
+    // O restante do seu código permanece praticamente o mesmo...
+    // ... (Hooks de som, handlers de formulário, etc)
+
     useFocusEffect(
         React.useCallback(() => {
             let soundObject: Audio.Sound | null = null;
@@ -135,7 +177,6 @@ const RegisterPage = () => {
         setParents(parents.filter((_, index) => index !== indexToRemove));
     };
 
-    // Função para validar o formulário e a força da senha
     const validateForm = (): string[] => {
         const errors: string[] = [];
 
@@ -143,15 +184,12 @@ const RegisterPage = () => {
         if (!dateOfBirth) errors.push('A data de nascimento é obrigatória.');
         if (!phoneNumber.trim()) errors.push('O telefone é obrigatório.');
         if (password !== confirmPassword) errors.push('As senhas não coincidem.');
-
-        // Validação de senha forte
         if (password.length < 8) errors.push('A senha deve ter no mínimo 8 caracteres.');
         if (!/[a-z]/.test(password)) errors.push('A senha deve conter pelo menos uma letra minúscula.');
         if (!/[A-Z]/.test(password)) errors.push('A senha deve conter pelo menos uma letra maiúscula.');
         if (!/\d/.test(password)) errors.push('A senha deve conter pelo menos um número.');
         if (!/[@$!%*?&]/.test(password)) errors.push('A senha deve conter pelo menos um caractere especial (@, $, !, %, *, ?, &).');
 
-        // Validações específicas para aluno
         if (role === 'ALUNO') {
             if (!street.trim()) errors.push('A rua é obrigatória.');
             if (!number.trim()) errors.push('O número do endereço é obrigatório.');
@@ -189,6 +227,7 @@ const RegisterPage = () => {
                     enrollmentId,
                     parents: parents
                 } : null,
+                invitationToken: invitationToken // Enviando o token para o backend poder invalidá-lo
             };
 
             const response = await fetch(`${BACKEND_BASE_URL}/public/register`, {
@@ -203,9 +242,7 @@ const RegisterPage = () => {
                 throw new Error(errorData.message || 'Falha ao registrar no backend.');
             }
 
-            setModalTitle('Sucesso!');
-            setModalMessage('Sua conta foi criada. Você será redirecionado para o login.');
-            setIsModalVisible(true);
+            showErrorModal('Sucesso!', 'Sua conta foi criada. Você será redirecionado para o login.');
             setTimeout(() => {
                 setIsModalVisible(false);
                 router.replace('/(auth)/login');
@@ -224,36 +261,46 @@ const RegisterPage = () => {
         }
     };
 
-    useEffect(() => {
-        if (!invitationToken) {
-            showErrorModal('Token Inválido', 'Token de convite não encontrado. Use o link enviado para o seu e-mail.');
-            router.replace('/(auth)/login');
-            return;
-        }
-        const validateToken = async () => {
-            setIsLoading(true);
-            try {
-                const response = await fetch(`${BACKEND_BASE_URL}/public/register/validate/${invitationToken}`);
-                if (!response.ok) throw new Error('Convite inválido');
-                const data: { email: string; role: Role } = await response.json();
-                setEmail(data.email);
-                setRole(data.role);
-            } catch (error) {
-                showErrorModal('Erro no Convite', 'Seu link de convite é inválido, expirou ou já foi utilizado.');
-                router.replace('/(auth)/login');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        validateToken();
-    }, [invitationToken]);
+    // ---- LÓGICA DE RENDERIZAÇÃO CONDICIONAL ----
 
     if (isLoading) {
-        return <View style={styles.loadingContainer}><ActivityIndicator size="large" /></View>;
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1E90FF" />
+                <Text style={{ marginTop: 10 }}>Validando seu convite...</Text>
+            </View>
+        );
     }
 
+    // Se houve um erro de validação, não renderizamos o formulário.
+    // O modal de erro já terá sido acionado pelo segundo useEffect.
+    // Aqui mostramos uma tela de fundo simples para não deixar o usuário em um limbo.
+    if (validationError) {
+        return (
+            <Provider theme={theme}>
+                <ImageBackground
+                    source={require('../../assets/images/backgroundRegister.png')}
+                    style={styles.background}
+                    resizeMode="cover"
+                    blurRadius={1}
+                >
+                    <View style={styles.overlay} />
+                    <Portal>
+                        <Modal visible={isModalVisible} onDismiss={() => setIsModalVisible(false)} contentContainerStyle={styles.modalContainer}>
+                            <Text style={styles.modalTitle}>{modalTitle}</Text>
+                            <Text style={styles.modalMessage}>{modalMessage}</Text>
+                            <Button mode="contained" onPress={() => router.replace('/(auth)/login')} style={styles.modalButton}>
+                                Voltar para o Login
+                            </Button>
+                        </Modal>
+                    </Portal>
+                </ImageBackground>
+            </Provider>
+        );
+    }
+
+    // Se passou pela validação, renderiza o formulário completo
     return (
-        // --- ALTERAÇÃO 2: Adicionando um View para garantir que o fundo ocupe toda a tela ---
         <View style={{ flex: 1 }}>
             <Provider theme={theme}>
                 <ImageBackground
@@ -384,7 +431,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
     },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f4f7' },
     title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 5, color: '#333' },
     subtitle: { fontSize: 18, textAlign: 'center', marginBottom: 20, color: 'gray' },
     sectionTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 10, borderTopColor: '#eee', borderTopWidth: 1, paddingTop: 20 },
@@ -399,7 +446,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
         borderRadius: 50
     },
-    // Estilos do Modal
     modalContainer: {
         backgroundColor: 'white',
         padding: 20,
