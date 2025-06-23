@@ -31,7 +31,7 @@ registerTranslation('pt-BR', {
 });
 
 // URL da API de backend
-const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com'; 
+const BACKEND_BASE_URL = 'https://pessoas-api-c5ef63b1acc3.herokuapp.com';
 
 // Tipos de papéis e dados da aplicação
 type Role = 'ALUNO' | 'PROFESSOR' | 'ADMIN';
@@ -39,12 +39,12 @@ type ParentInfo = { name: string; email: string; phoneNumber: string; relationsh
 
 // --- ALTERAÇÃO 1: Definindo um tema para escurecer as labels ---
 const theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    onSurfaceVariant: '#333', // Cor da label do TextInput no modo 'outlined'
-    primary: '#1E90FF', // Mantém a cor primária para quando o campo está focado
-  },
+    ...DefaultTheme,
+    colors: {
+        ...DefaultTheme.colors,
+        onSurfaceVariant: '#333', // Cor da label do TextInput no modo 'outlined'
+        primary: '#1E90FF', // Mantém a cor primária para quando o campo está focado
+    },
 };
 
 const RegisterPage = () => {
@@ -75,8 +75,8 @@ const RegisterPage = () => {
     const [enrollmentId, setEnrollmentId] = useState('');
     const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
     const [openDatePicker, setOpenDatePicker] = useState(false);
-    const [parents, setParents] = useState<ParentInfo[]>([]); 
-    const [currentParent, setCurrentParent] = useState<ParentInfo>({ name: '', email: '', phoneNumber: '', relationship: '' }); 
+    const [parents, setParents] = useState<ParentInfo[]>([]);
+    const [currentParent, setCurrentParent] = useState<ParentInfo>({ name: '', email: '', phoneNumber: '', relationship: '' });
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,11 +91,11 @@ const RegisterPage = () => {
     useFocusEffect(
         React.useCallback(() => {
             let soundObject: Audio.Sound | null = null;
-            
+
             const loadSound = async () => {
                 const { sound } = await Audio.Sound.createAsync(
-                   require('../../assets/audio/Stardew Valley OST - Cloud Country.mp3'),
-                   { isLooping: true } 
+                    require('../../assets/audio/Stardew Valley OST - Cloud Country.mp3'),
+                    { isLooping: true }
                 );
                 soundObject = sound;
                 setSound(soundObject);
@@ -121,7 +121,7 @@ const RegisterPage = () => {
         }
         setIsPlaying(!isPlaying);
     };
-    
+
     const handleAddParent = () => {
         if (!currentParent.name || !currentParent.relationship) {
             showErrorModal('Campo Obrigatório', 'Preencha pelo menos o nome e a relação do responsável.');
@@ -150,7 +150,7 @@ const RegisterPage = () => {
         if (!/[A-Z]/.test(password)) errors.push('A senha deve conter pelo menos uma letra maiúscula.');
         if (!/\d/.test(password)) errors.push('A senha deve conter pelo menos um número.');
         if (!/[@$!%*?&]/.test(password)) errors.push('A senha deve conter pelo menos um caractere especial (@, $, !, %, *, ?, &).');
-        
+
         // Validações específicas para aluno
         if (role === 'ALUNO') {
             if (!street.trim()) errors.push('A rua é obrigatória.');
@@ -187,7 +187,7 @@ const RegisterPage = () => {
                 },
                 studentDetails: role === 'ALUNO' ? {
                     enrollmentId,
-                    parents: parents 
+                    parents: parents
                 } : null,
             };
 
@@ -202,7 +202,7 @@ const RegisterPage = () => {
                 await user.delete();
                 throw new Error(errorData.message || 'Falha ao registrar no backend.');
             }
-            
+
             setModalTitle('Sucesso!');
             setModalMessage('Sua conta foi criada. Você será redirecionado para o login.');
             setIsModalVisible(true);
@@ -223,7 +223,7 @@ const RegisterPage = () => {
             setIsSubmitting(false);
         }
     };
-    
+
     useEffect(() => {
         if (!invitationToken) {
             showErrorModal('Token Inválido', 'Token de convite não encontrado. Use o link enviado para o seu e-mail.');
@@ -254,7 +254,7 @@ const RegisterPage = () => {
 
     return (
         // --- ALTERAÇÃO 2: Adicionando um View para garantir que o fundo ocupe toda a tela ---
-        <View style={{flex: 1}}> 
+        <View style={{ flex: 1 }}>
             <Provider theme={theme}>
                 <ImageBackground
                     source={require('../../assets/images/backgroundRegister.png')}
@@ -281,29 +281,29 @@ const RegisterPage = () => {
                         onPress={handlePlayPause}
                         style={styles.playPauseButton}
                     />
-                    
+
                     <ScrollView contentContainerStyle={styles.container}>
                         <Card style={styles.formCard}>
                             <Card.Content>
                                 <Text style={styles.title}>Complete seu Cadastro</Text>
                                 <Text style={styles.subtitle}>Seu papel será: {role}</Text>
-                                
+
                                 <TextInput label="Nome Completo" value={name} onChangeText={setName} style={styles.input} mode="outlined" />
                                 <TextInput label="E-mail" value={email} disabled style={styles.input} mode="outlined" />
-                                
+
                                 <TouchableOpacity onPress={() => setOpenDatePicker(true)}>
                                     <View pointerEvents="none">
                                         <TextInput label="Data de Nascimento" value={dateOfBirth ? dateOfBirth.toLocaleDateString('pt-BR') : ''} style={styles.input} mode="outlined" right={<TextInput.Icon icon="calendar" />} />
                                     </View>
                                 </TouchableOpacity>
-                                
+
                                 <TextInput label="Telefone" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" style={styles.input} mode="outlined" />
-                                
+
                                 {role === 'ALUNO' && (
                                     <>
                                         <Text style={styles.sectionTitle}>Detalhes do Aluno</Text>
                                         <TextInput label="Matrícula (Opcional)" value={enrollmentId} onChangeText={setEnrollmentId} style={styles.input} mode="outlined" />
-                                        
+
                                         <Text style={styles.sectionTitle}>Responsáveis</Text>
                                         {parents.map((parent, index) => (
                                             <Card key={index} style={styles.card}>
@@ -314,10 +314,10 @@ const RegisterPage = () => {
                                                 />
                                             </Card>
                                         ))}
-                                        <TextInput label="Nome do Responsável" value={currentParent.name} onChangeText={(text) => setCurrentParent({...currentParent, name: text})} style={styles.input} mode="outlined" />
-                                        <TextInput label="Relação (Pai, Mãe, etc)" value={currentParent.relationship} onChangeText={(text) => setCurrentParent({...currentParent, relationship: text})} style={styles.input} mode="outlined" />
-                                        <TextInput label="E-mail do Responsável (Opcional)" value={currentParent.email} onChangeText={(text) => setCurrentParent({...currentParent, email: text})} keyboardType="email-address" style={styles.input} mode="outlined" />
-                                        <TextInput label="Telefone do Responsável (Opcional)" value={currentParent.phoneNumber} onChangeText={(text) => setCurrentParent({...currentParent, phoneNumber: text})} keyboardType="phone-pad" style={styles.input} mode="outlined" />
+                                        <TextInput label="Nome do Responsável" value={currentParent.name} onChangeText={(text) => setCurrentParent({ ...currentParent, name: text })} style={styles.input} mode="outlined" />
+                                        <TextInput label="Relação (Pai, Mãe, etc)" value={currentParent.relationship} onChangeText={(text) => setCurrentParent({ ...currentParent, relationship: text })} style={styles.input} mode="outlined" />
+                                        <TextInput label="E-mail do Responsável (Opcional)" value={currentParent.email} onChangeText={(text) => setCurrentParent({ ...currentParent, email: text })} keyboardType="email-address" style={styles.input} mode="outlined" />
+                                        <TextInput label="Telefone do Responsável (Opcional)" value={currentParent.phoneNumber} onChangeText={(text) => setCurrentParent({ ...currentParent, phoneNumber: text })} keyboardType="phone-pad" style={styles.input} mode="outlined" />
                                         <Button mode="outlined" onPress={handleAddParent} style={styles.input}>Adicionar Responsável</Button>
 
                                         <Text style={styles.sectionTitle}>Endereço</Text>
@@ -361,9 +361,9 @@ const RegisterPage = () => {
 
 const styles = StyleSheet.create({
     background: {
-        flex: 1,
+        ...StyleSheet.absoluteFillObject, // O truque principal está aqui
         width: '100%',
-        backgroundColor: "white"
+        height: '100%',
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 15,
         right: 15,
-        zIndex: 1, 
+        zIndex: 1,
         backgroundColor: 'rgba(255, 255, 255, 0.8)',
         borderRadius: 50
     },
