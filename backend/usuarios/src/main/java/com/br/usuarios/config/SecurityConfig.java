@@ -1,0 +1,52 @@
+// Caminho: src/main/java/com/br/usuarios/config/SecurityConfig.java
+package com.br.usuarios.config;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.core.GrantedAuthorityDefaults;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.http.HttpMethod; // Mantenha este import
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(securedEnabled = true)
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final FirebaseTokenFilter firebaseTokenFilter;
+    private final CorsConfigurationSource corsConfigurationSource;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // As regras de autorização aqui usam hasRole sem o prefixo.
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Permitir requisições OPTIONS
+                        .requestMatchers("/public/**").permitAll() // Permitir endpoints públicos
+                        .anyRequest().permitAll() // <<< MUDANÇA AQUI: PERMITE QUALQUER REQUISIÇÃO
+                )
+                .addFilterBefore(firebaseTokenFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    /**
+     * Bean para remover o prefixo padrão "ROLE_" do Spring Security.
+     * Ao retornar uma string vazia, permitimos o uso de papéis
+     * diretamente, como @Secured("ADMIN").
+     */
+    @Bean
+    public GrantedAuthorityDefaults grantedAuthorityDefaults() {
+        return new GrantedAuthorityDefaults(""); // Remove o prefixo ROLE_
+    }
+}
