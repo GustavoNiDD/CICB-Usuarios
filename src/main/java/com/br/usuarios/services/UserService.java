@@ -4,7 +4,7 @@ package com.br.usuarios.services;
 import com.br.usuarios.dtos.UserCreationDto;
 import com.br.usuarios.mappers.UserMapper;
 import com.br.usuarios.models.*;
-import com.br.usuarios.repositories.StudentDetailsRepository; // <-- NOVA IMPORTAÇÃO
+import com.br.usuarios.repositories.StudentDetailsRepository;
 import com.br.usuarios.repositories.UserRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
@@ -15,33 +15,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map; // --- MUDANÇA AQUI: Nova importação necessária ---
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j // Adicionado para logs
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
     private final InvitationService invitationService;
-
-    // --- NOVAS DEPENDÊNCIAS ---
     private final StudentDetailsRepository studentDetailsRepository;
     private final UserMapper userMapper;
 
-    /**
-     * NOVO MÉTODO: Cria um usuário com detalhes completos a partir de um DTO.
-     * Este método contém a lógica de orquestração para salvar entidades relacionadas.
-     *
-     * @param dto O DTO com todas as informações para criação do usuário.
-     * @return A entidade User recém-criada e persistida.
-     * @throws Exception se o email ou UID já existirem.
-     */
     @Transactional
     public User createUser(UserCreationDto dto) throws Exception {
         log.info("Iniciando criação de usuário para o email: {}", dto.getEmail());
 
-        // 1. Validações prévias para evitar conflitos
         if (userRepository.existsByUid(dto.getUid())) {
             throw new Exception("UID já cadastrado.");
         }
@@ -49,58 +39,54 @@ public class UserService {
             throw new Exception("Email já cadastrado.");
         }
 
-        // 2. Usa o Mapper para converter o DTO em uma entidade User (sem os detalhes do aluno)
         User user = userMapper.fromCreationDto(dto);
 
-        // 3. Lógica de orquestração para papéis específicos (ALUNO)
         if (dto.getRole() == Role.ALUNO && dto.getStudentDetails() != null) {
             log.info("Usuário é um ALUNO. Processando detalhes de estudante...");
-            
-            // a. Cria a entidade StudentDetails a partir dos dados do DTO
             StudentDetails details = StudentDetails.builder()
                     .enrollmentId(dto.getStudentDetails().getEnrollmentId())
                     .parents(dto.getStudentDetails().getParents())
                     .build();
-
-            // b. SALVA a entidade de detalhes PRIMEIRO para obter seu ID no MongoDB
             StudentDetails savedDetails = studentDetailsRepository.save(details);
-            log.info("Detalhes de estudante salvos com ID: {}", savedDetails.getId());
-
-            // c. ATRIBUI a referência dos detalhes salvos de volta ao objeto User
             user.setStudentDetails(savedDetails);
         }
 
-        // 4. Salva a entidade User final, agora com todas as referências corretas
         User savedUser = userRepository.save(user);
         log.info("Usuário final salvo com ID: {}", savedUser.getId());
+
+        // --- MUDANÇA AQUI: Chamando o método para carimbar o papel no token ---
+        if (savedUser.getRole() != null) {
+            setRoleAsCustomClaim(savedUser.getUid(), savedUser.getRole());
+        }
         
         return savedUser;
     }
 
-    // --- SEUS MÉTODOS EXISTENTES (mantidos por enquanto) ---
-
     @Transactional
     public User processFirebaseUser(FirebaseToken decodedToken) {
-        // Este método continua criando um usuário "mínimo".
-        // Poderia ser adaptado no futuro para coletar mais detalhes.
         return userRepository.findByUid(decodedToken.getUid()).orElseGet(() -> {
             User newUser = User.builder()
                     .uid(decodedToken.getUid())
                     .email(decodedToken.getEmail())
                     .name(decodedToken.getName())
-                    .role(Role.ALUNO)
+                    .role(Role.ALUNO) // Define um papel padrão
                     .build();
-            return userRepository.save(newUser);
+            User savedUser = userRepository.save(newUser);
+
+            // --- MUDANÇA AQUI: Carimbando o papel também neste fluxo de criação ---
+            if (savedUser.getRole() != null) {
+                setRoleAsCustomClaim(savedUser.getUid(), savedUser.getRole());
+            }
+
+            return savedUser;
         });
     }
 
     @Transactional
     public User registerNewUser(String firebaseIdToken, String invitationToken) throws Exception {
-        // Validações do convite...
         Invitation invitation = invitationService.validateInvitation(invitationToken)
-            .orElseThrow(() -> new Exception("Convite inválido ou expirado."));
+                .orElseThrow(() -> new Exception("Convite inválido ou expirado."));
         
-        // Validações do Firebase...
         FirebaseToken decodedToken;
         try {
             decodedToken = FirebaseAuth.getInstance().verifyIdToken(firebaseIdToken);
@@ -115,9 +101,6 @@ public class UserService {
             throw new Exception("Usuário já cadastrado no sistema.");
         }
 
-        // Este método também cria um usuário "mínimo".
-        // O ideal seria que o fluxo de convite levasse a uma tela de "complete seu perfil"
-        // que, ao ser submetida, chamaria nosso novo método createUser().
         User newUser = User.builder()
                 .uid(decodedToken.getUid())
                 .email(decodedToken.getEmail())
@@ -126,9 +109,35 @@ public class UserService {
                 .build();
         userRepository.save(newUser);
         
+        // --- MUDANÇA AQUI: Carimbando o papel também no fluxo de registro por convite ---
+        if (newUser.getRole() != null) {
+            setRoleAsCustomClaim(newUser.getUid(), newUser.getRole());
+        }
+        
         invitationService.markInvitationAsAccepted(invitation);
         
         return newUser;
+    }
+
+    // --- MUDANÇA AQUI: Adicionando o novo método ---
+    /**
+     * Define o papel (role) do usuário como uma "Custom Claim" no Firebase Authentication.
+     * Isso permite que outros microserviços leiam o papel diretamente do token,
+     * tornando a autorização rápida e desacoplada.
+     *
+     * @param uid O UID do usuário no Firebase.
+     * @param role O papel (ADMIN, PROFESSOR, etc.) a ser definido.
+     */
+    public void setRoleAsCustomClaim(String uid, Role role) {
+        try {
+            Map<String, Object> claims = Map.of("role", role.name());
+            FirebaseAuth.getInstance().setCustomUserClaims(uid, claims);
+            log.info("Papel '{}' carimbado com sucesso no token do usuário UID '{}'", role.name(), uid);
+        } catch (FirebaseAuthException e) {
+            log.error("Erro ao definir custom claim de papel para o UID '{}': {}", uid, e.getMessage());
+            // Considere como tratar este erro. Lançar uma exceção pode ser apropriado
+            // para garantir que a operação de criação não seja concluída sem a claim.
+        }
     }
 
     public Optional<User> findByUid(String uid) {

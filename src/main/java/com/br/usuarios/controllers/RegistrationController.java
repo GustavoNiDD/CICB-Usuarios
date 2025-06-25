@@ -1,5 +1,3 @@
-// SUBSTITUA O CONTEÚDO DESTE ARQUIVO:
-// Caminho: src/main/java/com/br/usuarios/controllers/RegistrationController.java
 package com.br.usuarios.controllers;
 
 import com.br.usuarios.dtos.InvitationDetailsDto;
@@ -28,13 +26,14 @@ public class RegistrationController {
     private final InvitationService invitationService;
 
     /**
-     * NOVO ENDPOINT: Verifica a validade de um token de convite.
-     * O frontend chamará isso antes de renderizar o formulário de registro.
-     * @param token O token do convite vindo da URL.
+     * ENDPOINT AJUSTADO: Verifica a validade de um token de convite via Query Parameter.
+     * O frontend chamará /public/register/validate?token=SEU_TOKEN, alinhado com o novo código.
+     *
+     * @param token O token do convite vindo da URL como um parâmetro de consulta.
      * @return Os detalhes do convite (email e papel) se for válido.
      */
-    @GetMapping("/validate/{token}")
-    public ResponseEntity<InvitationDetailsDto> validateInvitation(@PathVariable String token) {
+    @GetMapping("/validate") // <-- MUDANÇA 1: O caminho não contém mais a variável.
+    public ResponseEntity<InvitationDetailsDto> validateInvitation(@RequestParam String token) { // <-- MUDANÇA 2: A anotação mudou para @RequestParam.
         return invitationService.validateInvitation(token)
                 .map(invitation -> new InvitationDetailsDto(invitation.getEmail(), invitation.getRole()))
                 .map(ResponseEntity::ok)
@@ -45,13 +44,16 @@ public class RegistrationController {
      * ENDPOINT ATUALIZADO: Finaliza o registro do usuário.
      * Agora recebe um DTO com todos os detalhes do perfil do formulário.
      *
-     * @param creationDto O DTO com todos os dados do usuário do formulário.
+     * @param creationDto O DTO com todos os dados do usuário, incluindo o 'invitationToken'.
      * @return Os dados do usuário recém-criado.
      */
     @PostMapping
     public ResponseEntity<UserDetailsDto> register(@RequestBody UserCreationDto creationDto) {
+        // Lembre-se: O DTO `UserCreationDto` agora precisa ter o campo `private String invitationToken;`
+        // para receber o token enviado pelo frontend.
+        // A lógica para usar esse token e marcar o convite como "ACCEPTED" deve ser
+        // implementada dentro do seu `userService.createUser(creationDto)`.
         try {
-            // A chamada agora é para o nosso serviço robusto que sabe criar usuários completos
             User newUser = userService.createUser(creationDto);
             return ResponseEntity.status(HttpStatus.CREATED).body(userMapper.toDetailsDto(newUser));
         } catch (Exception e) {
