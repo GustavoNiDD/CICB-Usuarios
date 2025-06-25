@@ -69,7 +69,7 @@ public class AdminController {
                     // Continua para o próximo usuário
                 }
             }
-        }
+        } 
 
         String responseMessage = updatedCount + " usuários tiveram seus papéis atualizados no Firebase.";
         log.info(">>> " + responseMessage);
