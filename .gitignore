@@ -38,4 +38,7 @@ serviceAccountKey.json
 # Tokens do Firebase
 xx.json
 
+HEROKU_DEPLOY.md
+
+test-cors.html
 
