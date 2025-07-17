@@ -32,4 +32,6 @@ public interface UserRepository extends MongoRepository<User, String> {
      * Busca todos os usuários que possuem um determinado papel (role).
      */
     List<User> findByRole(Role role);
+
+     List<User> findAllByUidIn(List<String> uids);
 }

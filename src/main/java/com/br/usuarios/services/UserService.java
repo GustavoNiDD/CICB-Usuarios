@@ -160,4 +160,10 @@ public class UserService {
     public List<User> findByRole(Role role) {
         return userRepository.findByRole(role);
     }
+
+    // --- ADICIONE ESTE MÉTODO ---
+    public List<User> findAllByUidIn(List<String> uids) {
+        log.info(">>> Buscando {} usuários pela lista de UIDs.", uids.size());
+        return userRepository.findAllByUidIn(uids);
+    }
 }

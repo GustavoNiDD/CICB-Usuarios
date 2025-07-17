@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -75,6 +77,24 @@ public class UserController {
                 .map(userMapper::toDetailsDto)
                 .collect(Collectors.toList());
         
+        return ResponseEntity.ok(dtos);
+    }
+
+    // --- NOVO ENDPOINT AQUI ---
+    /**
+     * Busca os detalhes de múltiplos usuários a partir de uma lista de UIDs.
+     * Essencial para buscar os nomes dos alunos de uma turma.
+     * @param uids A lista de UIDs a serem buscados.
+     * @return Uma lista com os detalhes dos usuários encontrados.
+     */
+    @PostMapping("/details-by-uids")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROFESSOR')")
+    public ResponseEntity<List<UserDetailsDto>> getUsersDetailsByUids(@RequestBody List<String> uids) {
+        log.info(">>> Buscando detalhes para {} UIDs", uids.size());
+        List<User> users = userService.findAllByUidIn(uids); // Você precisará criar este método no service/repository
+        List<UserDetailsDto> dtos = users.stream()
+                .map(userMapper::toDetailsDto)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
 }
