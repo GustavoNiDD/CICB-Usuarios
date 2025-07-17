@@ -2,17 +2,26 @@
 // src/main/java/com/br/usuarios/controllers/UserController.java
 package com.br.usuarios.controllers;
 
-// Importe o novo DTO de detalhes
-import com.br.usuarios.dtos.UserDetailsDto;
-import com.br.usuarios.mappers.UserMapper;
-import com.br.usuarios.services.UserService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+// Importe o novo DTO de detalhes
+import com.br.usuarios.dtos.UserDetailsDto;
+import com.br.usuarios.mappers.UserMapper;
+import com.br.usuarios.models.Role;
+import com.br.usuarios.models.User;
+import com.br.usuarios.services.UserService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/users")
@@ -40,5 +49,32 @@ public class UserController {
                     log.warn(">>> UserController: Usuário não encontrado para UID: {}", uid);
                     return ResponseEntity.notFound().build();
                 });
+    }
+
+    // --- NOVO ENDPOINT AQUI ---
+    /**
+     * Lista todos os usuários, com a opção de filtrar por papel (role).
+     * Protegido para ser acessível apenas por ADMIN ou PROFESSOR.
+     *
+     * @param role (Opcional) O papel para filtrar os usuários.
+     * @return Uma lista de DTOs com os detalhes dos usuários.
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'PROFESSOR')")
+    public ResponseEntity<List<UserDetailsDto>> getAllUsers(@RequestParam(required = false) Role role) {
+        List<User> users;
+        if (role != null) {
+            log.info(">>> UserController: Buscando usuários com a role: {}", role);
+            users = userService.findByRole(role);
+        } else {
+            log.info(">>> UserController: Buscando todos os usuários.");
+            users = userService.findAll();
+        }
+
+        List<UserDetailsDto> dtos = users.stream()
+                .map(userMapper::toDetailsDto)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(dtos);
     }
 }

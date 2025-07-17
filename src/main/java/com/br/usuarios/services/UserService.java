@@ -1,22 +1,27 @@
 // src/main/java/com/br/usuarios/services/UserService.java
 package com.br.usuarios.services;
 
+import java.util.List;
+import java.util.Map; // --- MUDANÇA AQUI: Nova importação necessária ---
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.br.usuarios.dtos.UserCreationDto;
 import com.br.usuarios.mappers.UserMapper;
-import com.br.usuarios.models.*;
+import com.br.usuarios.models.Invitation;
+import com.br.usuarios.models.Role;
+import com.br.usuarios.models.StudentDetails;
+import com.br.usuarios.models.User;
 import com.br.usuarios.repositories.StudentDetailsRepository;
 import com.br.usuarios.repositories.UserRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Map; // --- MUDANÇA AQUI: Nova importação necessária ---
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -146,5 +151,13 @@ public class UserService {
 
     public List<User> findAll() {
         return userRepository.findAll();
+    }
+
+    // --- NOVO MÉTODO AQUI ---
+    /**
+     * Busca usuários pelo seu papel (role).
+     */
+    public List<User> findByRole(Role role) {
+        return userRepository.findByRole(role);
     }
 }
