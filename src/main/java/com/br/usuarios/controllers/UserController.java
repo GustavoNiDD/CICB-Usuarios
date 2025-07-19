@@ -61,7 +61,7 @@ public class UserController {
      * @param role (Opcional) O papel para filtrar os usuários.
      * @return Uma lista de DTOs com os detalhes dos usuários.
      */
-    @GetMapping
+    @GetMapping 
     @PreAuthorize("hasAnyRole('ADMIN', 'PROFESSOR')")
     public ResponseEntity<List<UserDetailsDto>> getAllUsers(@RequestParam(required = false) Role role) {
         List<User> users;
